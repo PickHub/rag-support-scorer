@@ -1,0 +1,22 @@
+{
+  "questions_path": "data/processed/test_questions.jsonl",
+  "wrong_answers_path": "data/processed/test_wrong_answers.json",
+  "reader_model": "ibm-granite/granite-3.3-2b-instruct",
+  "reader_revision": "${GRANITE_MODEL_REVISION}",
+  "reader_max_new_tokens": 64,
+  "answer_free_checkpoint": "${ANSWER_FREE_CHECKPOINT}",
+  "answer_conditioned_checkpoint": "${ANSWER_CONDITIONED_CHECKPOINT}",
+  "scorer_tokenizer_model": "Qwen/Qwen3-0.6B",
+  "scorer_tokenizer_revision": "${SCORER_TOKENIZER_REVISION}",
+  "scorer_max_sequence_length": 2048,
+  "output_path": "results/stage2.jsonl",
+  "seed": 0,
+  "ranking_methods": [
+    "dataset_order",
+    "random",
+    "lexical_bm25",
+    "matched_answer_free",
+    "matched_answer_conditioned",
+    "oracle_support"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "questions_path": "data/processed/test_questions.jsonl",
+  "wrong_answers_path": "data/processed/test_wrong_answers.json",
+  "reader_answers_path": "data/processed/mock_reader_answers.json",
+  "output_path": "results/stage2.jsonl",
+  "seed": 0,
+  "ranking_methods": [
+    "dataset_order",
+    "random",
+    "lexical_bm25",
+    "oracle_support"
+  ]
+}

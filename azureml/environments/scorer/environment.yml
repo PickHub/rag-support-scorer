@@ -1,0 +1,7 @@
+$schema: https://azuremlschemas.azureedge.net/latest/environment.schema.json
+name: rag-support-scorer
+version: "1"
+description: Single-GPU QLoRA environment for matched RAG support scorers.
+build:
+  path: .
+  dockerfile_path: Dockerfile

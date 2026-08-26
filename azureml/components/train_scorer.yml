@@ -1,0 +1,52 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: train_rag_support_scorer
+version: "1"
+display_name: Train matched support scorer
+type: command
+inputs:
+  prepared_data:
+    type: uri_folder
+  target:
+    type: string
+    enum:
+      - answer_free
+      - answer_conditioned
+  model_name:
+    type: string
+  model_revision:
+    type: string
+  seed:
+    type: integer
+    default: 17
+  epochs:
+    type: integer
+    default: 1
+  learning_rate:
+    type: number
+    default: 0.0001
+  max_length:
+    type: integer
+    default: 2048
+  gradient_accumulation_steps:
+    type: integer
+    default: 16
+outputs:
+  model:
+    type: uri_folder
+  metrics:
+    type: uri_folder
+code: ../scripts
+environment: azureml:rag-support-scorer@latest
+command: >-
+  python train_scorer.py
+  --prepared-data ${{inputs.prepared_data}}
+  --target ${{inputs.target}}
+  --model-name ${{inputs.model_name}}
+  --model-revision ${{inputs.model_revision}}
+  --output-dir ${{outputs.model}}
+  --metrics-dir ${{outputs.metrics}}
+  --seed ${{inputs.seed}}
+  --epochs ${{inputs.epochs}}
+  --learning-rate ${{inputs.learning_rate}}
+  --max-length ${{inputs.max_length}}
+  --gradient-accumulation-steps ${{inputs.gradient_accumulation_steps}}

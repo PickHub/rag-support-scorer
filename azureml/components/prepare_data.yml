@@ -1,0 +1,21 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: prepare_rag_support_preferences
+version: "1"
+display_name: Prepare scorer preferences
+type: command
+inputs:
+  source_data:
+    type: uri_folder
+  split_seed:
+    type: integer
+    default: 17
+outputs:
+  prepared_data:
+    type: uri_folder
+code: ../scripts
+environment: azureml:rag-support-scorer@latest
+command: >-
+  python prepare_data.py
+  --source-data ${{inputs.source_data}}
+  --output-dir ${{outputs.prepared_data}}
+  --split-seed ${{inputs.split_seed}}

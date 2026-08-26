@@ -1,0 +1,14 @@
+dataset: 2WikiMultiHopQA
+dataset_repository: xanhho/2WikiMultihopQA
+dataset_revision: 612bc5039a457880d9e7d84c3b0a4cf154b70e4f
+parquet_urls:
+  train: hf://datasets/xanhho/2WikiMultihopQA@612bc5039a457880d9e7d84c3b0a4cf154b70e4f/train.parquet
+  validation: hf://datasets/xanhho/2WikiMultihopQA@612bc5039a457880d9e7d84c3b0a4cf154b70e4f/dev.parquet
+test_split: null
+split_salt: rag-support-scorer-v1
+train_fraction: 0.8
+dev_fraction: 0.1
+maximum_contexts: 10
+bundle_size: 2
+near_duplicate_threshold: 0.85
+minhash_permutations: 64

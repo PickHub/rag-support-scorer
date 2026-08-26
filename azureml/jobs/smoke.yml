@@ -1,0 +1,19 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: gpu-datastore-mlflow-smoke
+experiment_name: rag-support-scorer-smoke
+description: Verify NVIDIA, CUDA, datastore mounting, and Azure ML MLflow tracking.
+code: ../scripts
+command: >-
+  nvidia-smi &&
+  python smoke.py
+  --datastore-input ${{inputs.datastore_input}}
+inputs:
+  datastore_input:
+    type: uri_folder
+    path: azureml://datastores/workspaceblobstore/paths/rag-support/smoke/
+    mode: ro_mount
+environment: azureml:rag-support-scorer@latest
+compute: azureml:gpu-t4-low-priority
+identity:
+  type: managed

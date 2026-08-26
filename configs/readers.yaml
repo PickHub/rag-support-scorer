@@ -1,0 +1,11 @@
+primary:
+  model: ibm-granite/granite-3.3-2b-instruct
+  revision: "${GRANITE_MODEL_REVISION}"
+  license: Apache-2.0
+  automated: true
+held_out:
+  model: google/gemma-3-4b-it
+  revision: "${GEMMA_MODEL_REVISION}"
+  license: Gemma
+  automated: false
+  reason: Manually gated model; run only after explicit license acceptance.

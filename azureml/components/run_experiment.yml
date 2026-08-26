@@ -1,0 +1,42 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: run_rag_support_experiment
+version: "1"
+display_name: Run controlled context-selection experiment
+type: command
+inputs:
+  questions:
+    type: uri_file
+  wrong_answers:
+    type: uri_file
+  answer_free_checkpoint:
+    type: uri_folder
+  answer_conditioned_checkpoint:
+    type: uri_folder
+  scorer_tokenizer_model:
+    type: string
+  scorer_tokenizer_revision:
+    type: string
+  reader_model:
+    type: string
+  reader_revision:
+    type: string
+  seed:
+    type: integer
+    default: 17
+outputs:
+  results:
+    type: uri_folder
+code: ../..
+environment: azureml:rag-support-scorer@latest
+command: >-
+  PYTHONPATH=src python azureml/scripts/run_experiment.py
+  --questions ${{inputs.questions}}
+  --wrong-answers ${{inputs.wrong_answers}}
+  --answer-free-checkpoint ${{inputs.answer_free_checkpoint}}
+  --answer-conditioned-checkpoint ${{inputs.answer_conditioned_checkpoint}}
+  --scorer-tokenizer-model ${{inputs.scorer_tokenizer_model}}
+  --scorer-tokenizer-revision ${{inputs.scorer_tokenizer_revision}}
+  --reader-model ${{inputs.reader_model}}
+  --reader-revision ${{inputs.reader_revision}}
+  --output-dir ${{outputs.results}}
+  --seed ${{inputs.seed}}
