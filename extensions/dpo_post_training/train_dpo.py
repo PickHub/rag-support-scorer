@@ -58,6 +58,25 @@ def load_preference_records(path: Path) -> list[dict[str, str]]:
     return records
 
 
+def validate_preference_lengths(
+    records: Sequence[dict[str, str]],
+    tokenizer: Any,
+    max_length: int,
+) -> None:
+    for index, record in enumerate(records):
+        for field in ("chosen", "rejected"):
+            encoded = tokenizer(
+                record["prompt"] + record[field],
+                truncation=False,
+                add_special_tokens=True,
+            )
+            if len(encoded["input_ids"]) > max_length:
+                raise ValueError(
+                    f"preference {index} {field} exceeds max_length; "
+                    "window the prompt without dropping evidence before DPO"
+                )
+
+
 def load_training_stack() -> dict[str, Any]:
     try:
         importlib.import_module("bitsandbytes")
@@ -109,6 +128,9 @@ def train(
     )
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
+    validate_preference_lengths(train_records, tokenizer, args.max_length)
+    if eval_records is not None:
+        validate_preference_lengths(eval_records, tokenizer, args.max_length)
 
     model = stack["AutoModelForCausalLM"].from_pretrained(
         args.model_name,

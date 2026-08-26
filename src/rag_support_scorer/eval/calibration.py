@@ -6,6 +6,7 @@ from typing import Protocol
 
 import numpy as np
 from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 
 
 class ProbabilityCalibrator(Protocol):
@@ -64,3 +65,24 @@ class IsotonicCalibrator:
         if not self._fitted:
             raise RuntimeError("calibrator must be fitted before prediction")
         return tuple(float(probability) for probability in self._model.predict(scores))
+
+
+@dataclass
+class PlattScaler:
+    scale: float = 1.0
+    bias: float = 0.0
+    _model: LogisticRegression | None = None
+
+    def fit(self, scores: Sequence[float], labels: Sequence[int]) -> PlattScaler:
+        if len(scores) != len(labels) or len(set(labels)) < 2:
+            raise ValueError("Platt scaling requires aligned scores with both labels")
+        model = LogisticRegression(C=1_000_000, solver="lbfgs")
+        model.fit(np.asarray(scores, dtype=np.float64).reshape(-1, 1), labels)
+        self.scale = float(model.coef_[0, 0])
+        self.bias = float(model.intercept_[0])
+        self._model = model
+        return self
+
+    def predict(self, scores: Sequence[float]) -> tuple[float, ...]:
+        logits = self.scale * np.asarray(scores, dtype=np.float64) + self.bias
+        return tuple(float(probability) for probability in _sigmoid(logits))

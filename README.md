@@ -43,6 +43,25 @@ GPU reproduction commands are in `scripts/reproduce_16gb.sh` and `scripts/reprod
 
 The scorer defaults to the text-only `Qwen/Qwen3-0.6B`; immutable model and tokenizer revisions are supplied through environment-expanded config. The GPU experiment loads both trained PEFT checkpoints and the automated `ibm-granite/granite-3.3-2b-instruct` reader. The synthetic config remains mock-only for CPU validation. Gemma is quarantined from automated runs because access requires manual license acceptance.
 
+Fit Platt calibration on development scorer outputs formatted as `{"score": ..., "label": ...}` JSONL:
+
+```bash
+uv run rag-support-calibrate \
+  --input results/dev_scorer_labels.jsonl \
+  --output results/scorer_calibration.json
+```
+
+Pass the resulting scale and bias into the controlled GPU experiment. Each run emits deterministic answer results plus gate examples containing matched-scorer disagreement features and gold-derived harm labels. Fit and evaluate the gate on separate development and locked test outputs:
+
+```bash
+uv run rag-support-gate \
+  --train results/dev_gate_examples.jsonl \
+  --test results/test_gate_examples.jsonl \
+  --output results/gate_report.json
+```
+
+The answer-conditioned Platt scale and bias must be fitted on development scorer labels before generating locked test gate examples. Contradiction scores are supplied as a separate immutable JSON mapping keyed by `<question-id>:<condition>`.
+
 ## Scope
 
 - Stage 1: deterministic ingestion, contamination checks, controlled interventions, artifact probes, and matched-scorer smoke validation.

@@ -8,17 +8,18 @@ identity:
 inputs:
   source_data:
     type: uri_folder
-    path: azureml://datastores/workspaceblobstore/paths/rag-support/preferences/
   experiment_questions:
     type: uri_file
-    path: azureml://datastores/workspaceblobstore/paths/rag-support/experiment/questions.jsonl
   wrong_answers:
     type: uri_file
-    path: azureml://datastores/workspaceblobstore/paths/rag-support/experiment/wrong_answers.json
+  contradiction_scores:
+    type: uri_file
   model_name: Qwen/Qwen3-0.6B
   model_revision: ""
   reader_model: ibm-granite/granite-3.3-2b-instruct
   reader_revision: ""
+  answer_conditioned_calibration_scale: 1.0
+  answer_conditioned_calibration_bias: 0.0
   split_seed: 17
   scorer_seed: 17
   epochs: 1
@@ -72,6 +73,9 @@ jobs:
       scorer_tokenizer_revision: ${{parent.inputs.model_revision}}
       reader_model: ${{parent.inputs.reader_model}}
       reader_revision: ${{parent.inputs.reader_revision}}
+      contradiction_scores: ${{parent.inputs.contradiction_scores}}
+      answer_conditioned_calibration_scale: ${{parent.inputs.answer_conditioned_calibration_scale}}
+      answer_conditioned_calibration_bias: ${{parent.inputs.answer_conditioned_calibration_bias}}
       seed: ${{parent.inputs.scorer_seed}}
     outputs:
       results: ${{parent.outputs.experiment_results}}

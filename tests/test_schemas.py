@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from rag_support_scorer.schemas import (
     AnswerCondition,
     PairwiseRewardExample,
+    QuestionExample,
     ScorerKind,
     SuppliedAnswer,
     TwoContextBundle,
@@ -46,3 +47,16 @@ def test_reward_targets_are_separate() -> None:
             chosen_context_ids=("c0", "c1"),
             rejected_context_ids=("c0", "c2"),
         )
+
+
+def test_question_preserves_large_candidate_pool_for_explicit_exclusion(
+    sample_example: QuestionExample,
+) -> None:
+    contexts = sample_example.contexts + tuple(
+        sample_example.contexts[-1].model_copy(
+            update={"source_id": f"extra-{index}", "position": 4 + index}
+        )
+        for index in range(7)
+    )
+    question = sample_example.model_copy(update={"contexts": contexts})
+    assert len(question.contexts) == 11

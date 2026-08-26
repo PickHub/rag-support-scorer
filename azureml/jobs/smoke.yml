@@ -11,9 +11,8 @@ command: >-
 inputs:
   datastore_input:
     type: uri_folder
-    path: azureml://datastores/workspaceblobstore/paths/rag-support/smoke/
     mode: ro_mount
-environment: azureml:rag-support-scorer@latest
+environment: azureml:rag-support-scorer:1
 compute: azureml:gpu-t4-low-priority
 identity:
   type: managed

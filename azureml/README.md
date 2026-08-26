@@ -103,6 +103,9 @@ Use an Azure ML datastore URI or registered data asset:
 export AZUREML_SOURCE_DATA="azureml://datastores/workspaceblobstore/paths/rag-support/preferences/"
 export AZUREML_EXPERIMENT_QUESTIONS="azureml://datastores/workspaceblobstore/paths/rag-support/experiment/questions.jsonl"
 export AZUREML_WRONG_ANSWERS="azureml://datastores/workspaceblobstore/paths/rag-support/experiment/wrong_answers.json"
+export AZUREML_CONTRADICTION_SCORES="azureml://datastores/workspaceblobstore/paths/rag-support/experiment/contradiction_scores.json"
+export AZUREML_ANSWER_CONDITIONED_CALIBRATION_SCALE="<development-fitted-value>"
+export AZUREML_ANSWER_CONDITIONED_CALIBRATION_BIAS="<development-fitted-value>"
 export AZUREML_MODEL_REVISION="<immutable-40-character-commit>"
 export AZUREML_READER_REVISION="<immutable-40-character-commit>"
 ./azureml/scripts/submit_experiment.sh

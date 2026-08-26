@@ -52,11 +52,13 @@ usage_json="$(
 check_quota() {
   local family="$1"
   local sku="$2"
+  local required_cores="$3"
   printf '%s' "$usage_json" | python -c '
 import json
 import sys
 
-family, sku = sys.argv[1:3]
+family, sku, required_cores = sys.argv[1:4]
+required_cores = int(required_cores)
 rows = json.load(sys.stdin)
 matching = []
 for row in rows:
@@ -67,7 +69,8 @@ for row in rows:
         value = str(name.get("value", ""))
         label = str(name.get("localizedValue", name.get("localized_value", value)))
     normalized = f"{value} {label}".lower().replace(" ", "")
-    if value == family or "lowpriority" in normalized or "spot" in normalized:
+    normalized_family = family.lower().replace(" ", "")
+    if value == family or normalized_family in normalized:
         current = row.get("currentValue", row.get("current_value"))
         matching.append((label, int(current), int(row["limit"])))
 if not matching:
@@ -76,9 +79,9 @@ if not matching:
 exhausted = False
 for label, current, limit in matching:
     print(f"{sku}: quota {label}: {current}/{limit}")
-    exhausted = exhausted or limit <= current
+    exhausted = exhausted or limit - current < required_cores
 raise SystemExit(1 if exhausted else 0)
-' "$family" "$sku"
+' "$family" "$sku" "$required_cores"
 }
 
 check_sku() {
@@ -86,6 +89,7 @@ check_sku() {
   local aml_size
   local sku_json
   local family
+  local required_cores
   local status=0
 
   aml_size="$(
@@ -142,7 +146,20 @@ rows = [row for row in json.load(sys.stdin) if row.get("name") == sku]
 print(rows[0].get("family", "") if rows else "")
 ' "$sku"
   )"
-  if [[ -z "$family" ]] || ! check_quota "$family" "$sku"; then
+  required_cores="$(
+    printf '%s' "$sku_json" | python -c '
+import json
+import sys
+
+sku = sys.argv[1]
+rows = [row for row in json.load(sys.stdin) if row.get("name") == sku]
+capabilities = rows[0].get("capabilities", []) if rows else []
+values = {item.get("name"): item.get("value") for item in capabilities}
+print(values.get("vCPUs", values.get("vCPUsAvailable", "")))
+' "$sku"
+  )"
+  if [[ -z "$family" || -z "$required_cores" ]] || \
+    ! check_quota "$family" "$sku" "$required_cores"; then
     status=1
   fi
   return "$status"

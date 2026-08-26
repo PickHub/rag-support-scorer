@@ -20,6 +20,12 @@ inputs:
     type: string
   reader_revision:
     type: string
+  contradiction_scores:
+    type: uri_file
+  answer_conditioned_calibration_scale:
+    type: number
+  answer_conditioned_calibration_bias:
+    type: number
   seed:
     type: integer
     default: 17
@@ -27,7 +33,7 @@ outputs:
   results:
     type: uri_folder
 code: ../..
-environment: azureml:rag-support-scorer@latest
+environment: azureml:rag-support-scorer:1
 command: >-
   PYTHONPATH=src python azureml/scripts/run_experiment.py
   --questions ${{inputs.questions}}
@@ -38,5 +44,8 @@ command: >-
   --scorer-tokenizer-revision ${{inputs.scorer_tokenizer_revision}}
   --reader-model ${{inputs.reader_model}}
   --reader-revision ${{inputs.reader_revision}}
+  --contradiction-scores ${{inputs.contradiction_scores}}
+  --answer-conditioned-calibration-scale ${{inputs.answer_conditioned_calibration_scale}}
+  --answer-conditioned-calibration-bias ${{inputs.answer_conditioned_calibration_bias}}
   --output-dir ${{outputs.results}}
   --seed ${{inputs.seed}}

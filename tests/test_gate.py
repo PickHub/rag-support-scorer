@@ -4,12 +4,14 @@ from dataclasses import fields
 
 import pytest
 
+from rag_support_scorer.gate.cli import evaluate_gate_ablations
 from rag_support_scorer.gate.features import (
     GateFeatures,
     generate_gate_features,
     rank_correlation,
 )
 from rag_support_scorer.gate.logistic import LogisticHarmGate, feature_ablation_sets
+from rag_support_scorer.schemas import AnswerCondition, GateTrainingExample
 
 
 def test_gate_features_use_only_inference_visible_values() -> None:
@@ -69,3 +71,56 @@ def test_missing_feature_patterns_are_rejected() -> None:
 
 def test_rank_correlation_treats_constant_tied_scores_as_uninformative() -> None:
     assert rank_correlation([1.0, 1.0, 1.0], [2.0, 2.0, 2.0]) == 0.0
+
+
+def test_gate_ablation_pipeline_evaluates_locked_examples() -> None:
+    def example(index: int, harmful: bool) -> GateTrainingExample:
+        risk = 0.9 if harmful else 0.1
+        return GateTrainingExample(
+            question_id=f"q{index}",
+            condition=(
+                AnswerCondition.PLAUSIBLE_WRONG if harmful else AnswerCondition.CORRECT
+            ),
+            features=GateFeatures(
+                answer_conditioned_probability=1 - risk,
+                top_bundle_overlap=1 - float(harmful),
+                rank_correlation=1 - 2 * float(harmful),
+                margin_disagreement=risk,
+                contradiction_score=risk,
+            ).as_mapping(),
+            harmful=harmful,
+        )
+
+    train = tuple(example(index, index >= 4) for index in range(8))
+    test = tuple(example(index + 8, index >= 4) for index in range(8))
+    report = evaluate_gate_ablations(train, test, seed=17)
+    assert report["harm_prevalence"] == 0.5
+    ablations = report["ablations"]
+    assert isinstance(ablations, dict)
+    assert set(ablations) == {
+        "confidence_only",
+        "contradiction_only",
+        "disagreement_only",
+        "full_without_contradiction",
+        "full",
+    }
+
+
+def test_gate_ablation_pipeline_rejects_train_test_overlap() -> None:
+    examples = tuple(
+        GateTrainingExample(
+            question_id=f"q{index}",
+            condition=AnswerCondition.CORRECT,
+            features=GateFeatures(
+                answer_conditioned_probability=0.1 + 0.8 * float(index >= 2),
+                top_bundle_overlap=float(index < 2),
+                rank_correlation=1.0 - float(index),
+                margin_disagreement=float(index),
+                contradiction_score=float(index >= 2),
+            ).as_mapping(),
+            harmful=index >= 2,
+        )
+        for index in range(4)
+    )
+    with pytest.raises(ValueError, match="overlap"):
+        evaluate_gate_ablations(examples, examples, seed=17)

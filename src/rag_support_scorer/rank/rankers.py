@@ -126,7 +126,7 @@ def _bm25_like_score(query: str, documents: Sequence[str]) -> list[float]:
 
 
 class LexicalRanker:
-    name = "lexical_bm25"
+    name = "lexical_question_only"
 
     def rank(
         self,
@@ -135,11 +135,7 @@ class LexicalRanker:
         supplied_answer: str | None,
     ) -> tuple[RankedBundle, ...]:
         contexts = _contexts_by_id(example)
-        query = (
-            example.question
-            if supplied_answer is None
-            else f"{example.question} {supplied_answer}"
-        )
+        query = example.question
         texts = [
             " ".join(contexts[context_id].text for context_id in bundle.context_ids)
             for bundle in bundles

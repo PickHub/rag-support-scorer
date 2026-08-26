@@ -9,12 +9,16 @@
   "scorer_tokenizer_model": "Qwen/Qwen3-0.6B",
   "scorer_tokenizer_revision": "${SCORER_TOKENIZER_REVISION}",
   "scorer_max_sequence_length": 2048,
+  "gate_output_path": "results/gate_examples.jsonl",
+  "contradiction_scores_path": "data/processed/test_contradiction_scores.json",
+  "answer_conditioned_calibration_scale": "${ANSWER_CONDITIONED_CALIBRATION_SCALE}",
+  "answer_conditioned_calibration_bias": "${ANSWER_CONDITIONED_CALIBRATION_BIAS}",
   "output_path": "results/stage2.jsonl",
   "seed": 0,
   "ranking_methods": [
     "dataset_order",
     "random",
-    "lexical_bm25",
+    "lexical_question_only",
     "matched_answer_free",
     "matched_answer_conditioned",
     "oracle_support"

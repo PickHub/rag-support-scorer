@@ -16,6 +16,9 @@ def main() -> None:
     parser.add_argument("--scorer-tokenizer-revision", required=True)
     parser.add_argument("--reader-model", required=True)
     parser.add_argument("--reader-revision", required=True)
+    parser.add_argument("--contradiction-scores", type=Path, required=True)
+    parser.add_argument("--answer-conditioned-calibration-scale", type=float, required=True)
+    parser.add_argument("--answer-conditioned-calibration-bias", type=float, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--seed", type=int, default=17)
     args = parser.parse_args()
@@ -29,12 +32,16 @@ def main() -> None:
         answer_conditioned_checkpoint=args.answer_conditioned_checkpoint,
         scorer_tokenizer_model=args.scorer_tokenizer_model,
         scorer_tokenizer_revision=args.scorer_tokenizer_revision,
+        contradiction_scores_path=args.contradiction_scores,
+        answer_conditioned_calibration_scale=args.answer_conditioned_calibration_scale,
+        answer_conditioned_calibration_bias=args.answer_conditioned_calibration_bias,
+        gate_output_path=args.output_dir / "gate_examples.jsonl",
         output_path=args.output_dir / "experiment_results.jsonl",
         seed=args.seed,
         ranking_methods=(
             "dataset_order",
             "random",
-            "lexical_bm25",
+            "lexical_question_only",
             "matched_answer_free",
             "matched_answer_conditioned",
             "oracle_support",

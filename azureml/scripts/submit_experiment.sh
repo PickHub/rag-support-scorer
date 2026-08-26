@@ -8,6 +8,9 @@ required_variables=(
   AZUREML_SOURCE_DATA
   AZUREML_EXPERIMENT_QUESTIONS
   AZUREML_WRONG_ANSWERS
+  AZUREML_CONTRADICTION_SCORES
+  AZUREML_ANSWER_CONDITIONED_CALIBRATION_SCALE
+  AZUREML_ANSWER_CONDITIONED_CALIBRATION_BIAS
   AZUREML_MODEL_REVISION
   AZUREML_READER_REVISION
 )
@@ -24,12 +27,17 @@ model_name="${AZUREML_MODEL_NAME:-Qwen/Qwen3-0.6B}"
 model_revision="$AZUREML_MODEL_REVISION"
 reader_model="${AZUREML_READER_MODEL:-ibm-granite/granite-3.3-2b-instruct}"
 reader_revision="$AZUREML_READER_REVISION"
+answer_conditioned_calibration_scale="$AZUREML_ANSWER_CONDITIONED_CALIBRATION_SCALE"
+answer_conditioned_calibration_bias="$AZUREML_ANSWER_CONDITIONED_CALIBRATION_BIAS"
 
 if [[ ! "$AZUREML_SOURCE_DATA" =~ ^azureml://datastores/[^/]+/paths/.+ ]]; then
   printf 'AZUREML_SOURCE_DATA must use azureml://datastores/<name>/paths/<path>.\n' >&2
   exit 2
 fi
-for uri in "$AZUREML_EXPERIMENT_QUESTIONS" "$AZUREML_WRONG_ANSWERS"; do
+for uri in \
+  "$AZUREML_EXPERIMENT_QUESTIONS" \
+  "$AZUREML_WRONG_ANSWERS" \
+  "$AZUREML_CONTRADICTION_SCORES"; do
   if [[ ! "$uri" =~ ^azureml://datastores/[^/]+/paths/.+ ]]; then
     printf 'Experiment data must use azureml://datastores/<name>/paths/<path>.\n' >&2
     exit 2
@@ -41,6 +49,12 @@ if [[ ! "$model_revision" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 if [[ ! "$reader_revision" =~ ^[0-9a-f]{40}$ ]]; then
   printf 'AZUREML_READER_REVISION must be an immutable 40-character commit SHA.\n' >&2
+  exit 2
+fi
+if ! python -c \
+  'import math, sys; raise SystemExit(0 if all(math.isfinite(float(v)) for v in sys.argv[1:]) else 1)' \
+  "$answer_conditioned_calibration_scale" "$answer_conditioned_calibration_bias"; then
+  printf 'Answer-conditioned calibration values must be finite numbers.\n' >&2
   exit 2
 fi
 
@@ -59,8 +73,11 @@ az ml job create \
   --set "inputs.source_data.path=$AZUREML_SOURCE_DATA" \
         "inputs.experiment_questions.path=$AZUREML_EXPERIMENT_QUESTIONS" \
         "inputs.wrong_answers.path=$AZUREML_WRONG_ANSWERS" \
+        "inputs.contradiction_scores.path=$AZUREML_CONTRADICTION_SCORES" \
         "inputs.model_name=$model_name" \
         "inputs.model_revision=$model_revision" \
         "inputs.reader_model=$reader_model" \
         "inputs.reader_revision=$reader_revision" \
+        "inputs.answer_conditioned_calibration_scale=$answer_conditioned_calibration_scale" \
+        "inputs.answer_conditioned_calibration_bias=$answer_conditioned_calibration_bias" \
         "settings.default_compute=azureml:$compute_name"

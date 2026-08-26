@@ -110,3 +110,35 @@ def test_normalized_duplicate_questions_share_a_split(tmp_path: Path) -> None:
     )
     assert len({record["split"] for record in manifest["records"]}) == 1
     assert len({record["split_group_sha256"] for record in manifest["records"]}) == 1
+
+
+def test_identical_support_sets_cannot_cross_splits(tmp_path: Path) -> None:
+    first_support = "The first shared passage names Charles Babbage."
+    second_support = "The second shared passage describes the machine."
+    records = [
+        {
+            "_id": identifier,
+            "question": question,
+            "answer": "Charles Babbage",
+            "type": "bridge",
+            "context": [
+                ["First shared", [first_support]],
+                ["Second shared", [second_support]],
+                ["Other", ["Unrelated passage."]],
+            ],
+            "supporting_facts": [["First shared", 0], ["Second shared", 0]],
+        }
+        for identifier, question in (
+            ("abc", "Who designed the first machine?"),
+            ("def", "Who designed the second machine?"),
+        )
+    ]
+    raw = tmp_path / "records.json"
+    raw.write_text(json.dumps(records))
+    manifest, _ = prepare_manifest(
+        load_2wiki_examples(raw),
+        source_path=raw,
+        dataset_revision="immutable-revision",
+        split_salt="test",
+    )
+    assert len({record["split"] for record in manifest["records"]}) == 1

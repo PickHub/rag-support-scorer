@@ -7,7 +7,10 @@ import unittest
 from pathlib import Path
 
 from extensions.dpo_post_training.best_of_n import read_records, select_candidate
-from extensions.dpo_post_training.train_dpo import load_preference_records
+from extensions.dpo_post_training.train_dpo import (
+    load_preference_records,
+    validate_preference_lengths,
+)
 
 EXTENSION_ROOT = Path(__file__).resolve().parents[1]
 
@@ -54,6 +57,18 @@ class OfflineConfigurationTest(unittest.TestCase):
             first = select_candidate(record, 3, f"{candidates}:{line_number}")
             second = select_candidate(record, 3, f"{candidates}:{line_number}")
             self.assertEqual(first, second)
+
+    def test_over_length_preferences_fail_before_dpo_truncation(self) -> None:
+        class Tokenizer:
+            def __call__(self, text: str, **_: object) -> dict[str, list[int]]:
+                return {"input_ids": list(range(len(text.split())))}
+
+        with self.assertRaisesRegex(ValueError, "exceeds max_length"):
+            validate_preference_lengths(
+                [{"prompt": "one two", "chosen": "three four", "rejected": "three"}],
+                Tokenizer(),
+                2,
+            )
 
 
 if __name__ == "__main__":

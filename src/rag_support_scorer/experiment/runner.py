@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 from collections.abc import Mapping, Sequence
@@ -26,6 +27,7 @@ from rag_support_scorer.experiment.hf_adapters import (
     TransformersReaderAdapter,
     TransformersScorerAdapter,
 )
+from rag_support_scorer.gate.features import generate_gate_features
 from rag_support_scorer.rank.rankers import (
     AdapterRanker,
     BundleRanker,
@@ -33,10 +35,12 @@ from rag_support_scorer.rank.rankers import (
     LexicalRanker,
     OracleSupportRanker,
     RandomRanker,
+    RankedBundle,
 )
 from rag_support_scorer.schemas import (
     AnswerCondition,
     ExperimentResult,
+    GateTrainingExample,
     QuestionExample,
     ScorerKind,
     SuppliedAnswer,
@@ -78,6 +82,10 @@ def run_controlled_experiment(
     reader: ReaderAdapter,
     *,
     seed: int = 0,
+    gate_examples: list[GateTrainingExample] | None = None,
+    answer_conditioned_calibration_scale: float | None = None,
+    answer_conditioned_calibration_bias: float | None = None,
+    contradiction_scores: Mapping[str, float] | None = None,
 ) -> tuple[ExperimentResult, ...]:
     bundles = enumerate_two_context_bundles(example)
     if not bundles:
@@ -85,10 +93,13 @@ def run_controlled_experiment(
     contexts = {context.source_id: context for context in example.contexts}
     results: list[ExperimentResult] = []
     for condition in conditions:
+        rankings: dict[str, tuple[RankedBundle, ...]] = {}
+        condition_results: dict[str, ExperimentResult] = {}
         for method_name, policy in ranking_policies.items():
             if policy.requires_answer and condition.text is None:
                 continue
             ranked = policy.ranker.rank(example, bundles, condition.text)
+            rankings[method_name] = ranked
             selected = ranked[0].bundle
             reader_contexts = (
                 contexts[selected.context_ids[0]],
@@ -98,22 +109,100 @@ def run_controlled_experiment(
             coverage = support_coverage_at_2(selected.context_ids, example.gold_support_ids)
             em = exact_match(reader_output.answer, example.gold_answers)
             f1 = token_f1(reader_output.answer, example.gold_answers)
-            results.append(
-                ExperimentResult(
-                    question_id=example.source_id,
-                    condition=condition.condition,
-                    ranking_method=method_name,
-                    selected_context_ids=selected.context_ids,
-                    supplied_answer=condition.text,
-                    final_answer=reader_output.answer,
-                    support_coverage_at_2=coverage,
-                    exact_match=em,
-                    token_f1=f1,
-                    joint_success=joint_success(coverage, em),
-                    scorer_metadata={"top_score": ranked[0].score},
-                )
+            result = ExperimentResult(
+                question_id=example.source_id,
+                condition=condition.condition,
+                ranking_method=method_name,
+                selected_context_ids=selected.context_ids,
+                supplied_answer=condition.text,
+                final_answer=reader_output.answer,
+                support_coverage_at_2=coverage,
+                exact_match=em,
+                token_f1=f1,
+                joint_success=joint_success(coverage, em),
+                scorer_metadata={"top_score": ranked[0].score},
+            )
+            results.append(result)
+            condition_results[method_name] = result
+        if gate_examples is not None and condition.text is not None:
+            _append_gate_example(
+                example,
+                condition,
+                rankings,
+                condition_results,
+                gate_examples,
+                answer_conditioned_calibration_scale,
+                answer_conditioned_calibration_bias,
+                contradiction_scores,
             )
     return tuple(results)
+
+
+def _append_gate_example(
+    example: QuestionExample,
+    condition: SuppliedAnswer,
+    rankings: Mapping[str, tuple[RankedBundle, ...]],
+    results: Mapping[str, ExperimentResult],
+    gate_examples: list[GateTrainingExample],
+    calibration_scale: float | None,
+    calibration_bias: float | None,
+    contradiction_scores: Mapping[str, float] | None,
+) -> None:
+    answer_free = "matched_answer_free"
+    answer_conditioned = "matched_answer_conditioned"
+    if answer_free not in rankings or answer_conditioned not in rankings:
+        raise ValueError("gate output requires both matched scorer ranking methods")
+    if (
+        calibration_scale is None
+        or calibration_bias is None
+        or contradiction_scores is None
+    ):
+        raise ValueError("gate output requires Platt calibration and contradiction scores")
+    contradiction_key = f"{example.source_id}:{condition.condition.value}"
+    try:
+        contradiction_score = contradiction_scores[contradiction_key]
+    except KeyError as error:
+        raise ValueError(f"missing contradiction score for {contradiction_key}") from error
+    free_scores = {
+        "|".join(item.bundle.context_ids): item.score for item in rankings[answer_free]
+    }
+    conditioned_scores = {
+        "|".join(item.bundle.context_ids): item.score
+        for item in rankings[answer_conditioned]
+    }
+    top_conditioned_score = rankings[answer_conditioned][0].score
+    calibrated_logit = calibration_scale * top_conditioned_score + calibration_bias
+    probability = (
+        1 / (1 + math.exp(-calibrated_logit))
+        if calibrated_logit >= 0
+        else math.exp(calibrated_logit) / (1 + math.exp(calibrated_logit))
+    )
+    features = generate_gate_features(
+        conditioned_scores,
+        free_scores,
+        calibrated_answer_conditioned_probability=probability,
+        contradiction_score=contradiction_score,
+    )
+    free_result = results[answer_free]
+    conditioned_result = results[answer_conditioned]
+    free_outcome = (
+        free_result.joint_success,
+        free_result.token_f1,
+        free_result.support_coverage_at_2,
+    )
+    conditioned_outcome = (
+        conditioned_result.joint_success,
+        conditioned_result.token_f1,
+        conditioned_result.support_coverage_at_2,
+    )
+    gate_examples.append(
+        GateTrainingExample(
+            question_id=example.source_id,
+            condition=condition.condition,
+            features=features.as_mapping(),
+            harmful=conditioned_outcome < free_outcome,
+        )
+    )
 
 
 class ExperimentConfig(BaseModel):
@@ -130,9 +219,18 @@ class ExperimentConfig(BaseModel):
     scorer_tokenizer_model: str | None = None
     scorer_tokenizer_revision: str | None = None
     scorer_max_sequence_length: int = Field(default=2048, ge=128)
+    gate_output_path: Path | None = None
+    contradiction_scores_path: Path | None = None
+    answer_conditioned_calibration_scale: float | None = None
+    answer_conditioned_calibration_bias: float | None = None
     output_path: Path
     seed: int = 0
-    ranking_methods: tuple[str, ...] = ("dataset_order", "random", "lexical_bm25", "oracle_support")
+    ranking_methods: tuple[str, ...] = (
+        "dataset_order",
+        "random",
+        "lexical_question_only",
+        "oracle_support",
+    )
 
     @model_validator(mode="after")
     def runtime_configuration_is_complete(self) -> ExperimentConfig:
@@ -160,6 +258,25 @@ class ExperimentConfig(BaseModel):
             self.scorer_tokenizer_revision
         ):
             raise ValueError("matched scorers require an immutable tokenizer revision")
+        gate_fields = (
+            self.gate_output_path,
+            self.contradiction_scores_path,
+            self.answer_conditioned_calibration_scale,
+            self.answer_conditioned_calibration_bias,
+        )
+        if any(value is not None for value in gate_fields) and not all(
+            value is not None for value in gate_fields
+        ):
+            raise ValueError(
+                "gate output path, contradiction scores, and Platt calibration are required"
+            )
+        if self.gate_output_path is not None and self.answer_free_checkpoint is None:
+            raise ValueError("gate output requires matched scorer checkpoints")
+        if self.gate_output_path is not None and not {
+            "matched_answer_free",
+            "matched_answer_conditioned",
+        } <= set(self.ranking_methods):
+            raise ValueError("gate output requires both matched scorer ranking methods")
         return self
 
 
@@ -167,7 +284,7 @@ def _ranking_policies(config: ExperimentConfig) -> dict[str, RankingPolicy]:
     available: dict[str, BundleRanker] = {
         "dataset_order": DatasetOrderRanker(),
         "random": RandomRanker(config.seed),
-        "lexical_bm25": LexicalRanker(),
+        "lexical_question_only": LexicalRanker(),
         "oracle_support": OracleSupportRanker(),
     }
     if config.answer_free_checkpoint is not None:
@@ -228,6 +345,14 @@ def run_from_config(config: ExperimentConfig) -> tuple[ExperimentResult, ...]:
         )
     policies = _ranking_policies(config)
     results: list[ExperimentResult] = []
+    gate_examples: list[GateTrainingExample] | None = (
+        [] if config.gate_output_path is not None else None
+    )
+    contradiction_scores = (
+        json.loads(config.contradiction_scores_path.read_text())
+        if config.contradiction_scores_path is not None
+        else None
+    )
     for example in examples:
         results.extend(
             run_controlled_experiment(
@@ -239,12 +364,26 @@ def run_from_config(config: ExperimentConfig) -> tuple[ExperimentResult, ...]:
                 policies,
                 reader,
                 seed=config.seed,
+                gate_examples=gate_examples,
+                answer_conditioned_calibration_scale=(
+                    config.answer_conditioned_calibration_scale
+                ),
+                answer_conditioned_calibration_bias=(
+                    config.answer_conditioned_calibration_bias
+                ),
+                contradiction_scores=contradiction_scores,
             )
         )
     config.output_path.parent.mkdir(parents=True, exist_ok=True)
     config.output_path.write_text(
         "\n".join(result.model_dump_json() for result in results) + "\n"
     )
+    if config.gate_output_path is not None:
+        assert gate_examples is not None
+        config.gate_output_path.parent.mkdir(parents=True, exist_ok=True)
+        config.gate_output_path.write_text(
+            "\n".join(example.model_dump_json() for example in gate_examples) + "\n"
+        )
     return tuple(results)
 
 

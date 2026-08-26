@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from rag_support_scorer.eval.calibration import IsotonicCalibrator, TemperatureScaler
+from rag_support_scorer.eval.calibration import (
+    IsotonicCalibrator,
+    PlattScaler,
+    TemperatureScaler,
+)
 from rag_support_scorer.eval.rewardbench import RewardBenchItem, evaluate_rejection_gate
 
 
@@ -11,8 +15,11 @@ def test_scorer_calibrators_return_probabilities() -> None:
     labels = [0, 0, 1, 1]
     temperature = TemperatureScaler().fit(scores, labels)
     isotonic = IsotonicCalibrator().fit(scores, labels)
+    platt = PlattScaler().fit(scores, labels)
     assert temperature.predict(scores) == tuple(sorted(temperature.predict(scores)))
     assert isotonic.predict(scores) == (0.0, 0.0, 1.0, 1.0)
+    assert platt.predict(scores) == tuple(sorted(platt.predict(scores)))
+    assert platt.bias != 0.0 or platt.scale != 1.0
 
 
 @dataclass(frozen=True)

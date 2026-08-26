@@ -39,6 +39,8 @@ dev = [
 rag-support-prepare = "rag_support_scorer.data.ingest:main"
 rag-support-train = "rag_support_scorer.train.reward:main"
 rag-support-experiment = "rag_support_scorer.experiment.runner:main"
+rag-support-calibrate = "rag_support_scorer.eval.calibrate_cli:main"
+rag-support-gate = "rag_support_scorer.gate.cli:main"
 rag-support-smoke = "rag_support_scorer.experiment.smoke:main"
 
 [tool.hatch.build.targets.wheel]

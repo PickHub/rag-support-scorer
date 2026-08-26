@@ -36,7 +36,7 @@ class QuestionExample(FrozenModel):
     source_id: str = Field(min_length=1)
     question: str = Field(min_length=1)
     gold_answers: tuple[str, ...] = Field(min_length=1)
-    contexts: tuple[ContextDocument, ...] = Field(min_length=1, max_length=10)
+    contexts: tuple[ContextDocument, ...] = Field(min_length=1)
     gold_support_ids: frozenset[str] = Field(min_length=1)
     question_type: str | None = None
 
@@ -126,3 +126,10 @@ class ExperimentResult(FrozenModel):
     token_f1: float = Field(ge=0.0, le=1.0)
     joint_success: float = Field(ge=0.0, le=1.0)
     scorer_metadata: dict[str, float] = Field(default_factory=dict)
+
+
+class GateTrainingExample(FrozenModel):
+    question_id: str
+    condition: AnswerCondition
+    features: dict[str, float]
+    harmful: bool

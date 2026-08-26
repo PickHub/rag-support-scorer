@@ -36,7 +36,7 @@ outputs:
   metrics:
     type: uri_folder
 code: ../scripts
-environment: azureml:rag-support-scorer@latest
+environment: azureml:rag-support-scorer:1
 command: >-
   python train_scorer.py
   --prepared-data ${{inputs.prepared_data}}

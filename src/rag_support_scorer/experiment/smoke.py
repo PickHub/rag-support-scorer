@@ -58,7 +58,7 @@ def main() -> None:
         controlled_conditions(example, plausible_wrong_answer="Alan Turing"),
         {
             "random": RankingPolicy(RandomRanker(seed=0)),
-            "lexical_bm25": RankingPolicy(LexicalRanker()),
+            "lexical_question_only": RankingPolicy(LexicalRanker()),
             "oracle_support": RankingPolicy(OracleSupportRanker()),
         },
         reader,

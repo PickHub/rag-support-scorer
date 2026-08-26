@@ -9,10 +9,8 @@ dist/
 build/
 .coverage
 htmlcov/
-data/raw/
-data/cache/
-data/processed/
-results/*.json
+data/
+results/
 checkpoints/
 outputs/
 *.safetensors

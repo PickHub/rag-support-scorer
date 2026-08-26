@@ -111,7 +111,7 @@ def parse_2wiki_record(raw: Mapping[str, Any]) -> QuestionExample:
         source_id=f"2wiki:{question_id}",
         question=str(raw["question"]),
         gold_answers=answers,
-        contexts=tuple(contexts[:10]),
+        contexts=tuple(contexts),
         gold_support_ids=gold_ids,
         question_type=str(raw["type"]) if raw.get("type") is not None else None,
     )
@@ -171,10 +171,12 @@ def prepare_manifest(
     split_salt: str,
     excluded_source_ids: frozenset[str] = frozenset(),
 ) -> tuple[dict[str, Any], PreparationSummary]:
+    sorted_examples = tuple(sorted(examples, key=lambda item: item.source_id))
+    split_groups = _split_group_keys(sorted_examples)
     records = []
     excluded = []
     split_counts = {"train": 0, "dev": 0, "test": 0}
-    for example in sorted(examples, key=lambda item: item.source_id):
+    for example in sorted_examples:
         if example.source_id in excluded_source_ids:
             excluded.append({"source_id": example.source_id, "reason": "contamination_match"})
             continue
@@ -183,7 +185,7 @@ def prepare_manifest(
             assert eligibility.reason is not None
             excluded.append({"source_id": example.source_id, "reason": eligibility.reason})
             continue
-        split_group = normalize_text(example.question)
+        split_group = split_groups[example.source_id]
         split = assign_split(split_group, salt=split_salt)
         split_counts[split.value] += 1
         records.append(
@@ -227,6 +229,42 @@ def prepare_manifest(
         excluded=len(excluded),
         split_counts=split_counts,
     )
+
+
+def _split_group_keys(
+    examples: Sequence[QuestionExample],
+) -> dict[str, str]:
+    parent = {example.source_id: example.source_id for example in examples}
+
+    def find(source_id: str) -> str:
+        while parent[source_id] != source_id:
+            parent[source_id] = parent[parent[source_id]]
+            source_id = parent[source_id]
+        return source_id
+
+    def union(first: str, second: str) -> None:
+        first_root = find(first)
+        second_root = find(second)
+        if first_root == second_root:
+            return
+        smaller, larger = sorted((first_root, second_root))
+        parent[larger] = smaller
+
+    fingerprint_owner: dict[str, str] = {}
+    for example in examples:
+        support_hashes = sorted(
+            hashlib.sha256(context.text.encode()).hexdigest()
+            for context in example.contexts
+            if context.source_id in example.gold_support_ids
+        )
+        fingerprints = {
+            f"question:{normalize_text(example.question)}",
+            f"support-set:{'|'.join(support_hashes)}",
+        }
+        for fingerprint in sorted(fingerprints):
+            owner = fingerprint_owner.setdefault(fingerprint, example.source_id)
+            union(example.source_id, owner)
+    return {source_id: find(source_id) for source_id in parent}
 
 
 def metadata_overlap_report(
