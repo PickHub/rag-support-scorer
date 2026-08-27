@@ -1,8 +1,23 @@
 # rag-support-scorer
 
-Single-GPU research code for testing when answer-conditioned context selection reinforces a wrong supplied answer.
+RAG systems can use a draft answer to select supporting context. When that draft is wrong, the ranking step can reinforce the mistake instead of correcting it.
 
-The primary task freezes up to ten 2WikiMultiHopQA contexts, enumerates every two-context bundle, compares matched answer-free and answer-conditioned scorers, and evaluates an inference-visible fallback gate. Raw passages and model weights are never committed.
+This repository provides a reproducible, single-GPU toolkit for measuring that failure mode and learning when to fall back to answer-free ranking.
+
+## What you can do
+
+- Build controlled preference data with correct and plausible-wrong supplied answers.
+- Train matched answer-free and answer-conditioned support scorers.
+- Compare both scorers over identical two-context candidate bundles.
+- Produce gold-derived harm labels and fit a calibrated fallback gate.
+- Reproduce the pipeline locally or on a scale-to-zero Azure ML GPU cluster.
+- Explore QLoRA DPO separately without conflating it with the primary experiment.
+
+The experiment harness, tests, and Azure ML assets are implemented. Trained checkpoints and empirical findings are not published yet, so the current value is reproducible research infrastructure rather than a claimed model improvement.
+
+## Who this is for
+
+Researchers and RAG engineers evaluating whether generated answers should influence evidence selection, especially when working with small models and limited GPU capacity.
 
 ## Quick start
 
