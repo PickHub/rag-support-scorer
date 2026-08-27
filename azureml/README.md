@@ -60,14 +60,28 @@ Set Docker build argument `INSTALL_BITSANDBYTES=0` only for non-QLoRA tooling;
 the scorer training entry point loads it lazily and requires it at runtime.
 
 The default cluster uses one low-priority `Standard_NC4as_T4_v3` node and
-scales to zero after 300 idle seconds. Node public IPs are disabled and compute
-uses a system-assigned identity. `Standard_NV36ads_A10_v5` is optional. Create
+scales to zero after 300 idle seconds. Compute uses a system-assigned identity,
+does not configure SSH access, and uses a public node IP because disabling node
+public IPs requires a private-endpoint workspace. `Standard_NV36ads_A10_v5` is optional. Create
 it only when preflight shows it in Azure ML `list-sizes` and without SKU or
 quota restrictions:
 
 ```bash
 AZUREML_CREATE_OPTIONAL_A10=true ./azureml/scripts/setup.sh
 ```
+
+If low-priority quota is unavailable but dedicated T4-family quota is approved,
+create the alternative scale-to-zero cluster:
+
+```bash
+az ml compute create \
+  --file azureml/compute/t4-dedicated.yml \
+  --subscription "$AZUREML_SUBSCRIPTION_ID" \
+  --resource-group "$AZUREML_RESOURCE_GROUP" \
+  --workspace-name "$AZUREML_WORKSPACE_NAME"
+```
+
+Submit with `AZUREML_COMPUTE_NAME=gpu-t4-dedicated`.
 
 Grant the compute identity least-privilege read access to input storage and
 write access only to required output paths before submitting managed-identity
@@ -110,6 +124,9 @@ export AZUREML_MODEL_REVISION="<immutable-40-character-commit>"
 export AZUREML_READER_REVISION="<immutable-40-character-commit>"
 ./azureml/scripts/submit_experiment.sh
 ```
+
+Versioned data asset references such as `azureml:rag-support-preferences-smoke:1`
+are also accepted.
 
 The default compute is `gpu-t4-low-priority`. To use the optional A10 cluster
 after it passes preflight:

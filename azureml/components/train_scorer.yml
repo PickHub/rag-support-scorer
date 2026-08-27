@@ -6,7 +6,7 @@ type: command
 inputs:
   prepared_data:
     type: uri_folder
-  target:
+  scorer_kind:
     type: string
     enum:
       - answer_free
@@ -40,7 +40,7 @@ environment: azureml:rag-support-scorer:1
 command: >-
   python train_scorer.py
   --prepared-data ${{inputs.prepared_data}}
-  --target ${{inputs.target}}
+  --target ${{inputs.scorer_kind}}
   --model-name ${{inputs.model_name}}
   --model-revision ${{inputs.model_revision}}
   --output-dir ${{outputs.model}}

@@ -42,7 +42,7 @@ jobs:
     component: ../components/train_scorer.yml
     inputs:
       prepared_data: ${{parent.jobs.prepare.outputs.prepared_data}}
-      target: answer_free
+      scorer_kind: answer_free
       model_name: ${{parent.inputs.model_name}}
       model_revision: ${{parent.inputs.model_revision}}
       seed: ${{parent.inputs.scorer_seed}}
@@ -54,7 +54,7 @@ jobs:
     component: ../components/train_scorer.yml
     inputs:
       prepared_data: ${{parent.jobs.prepare.outputs.prepared_data}}
-      target: answer_conditioned
+      scorer_kind: answer_conditioned
       model_name: ${{parent.inputs.model_name}}
       model_revision: ${{parent.inputs.model_revision}}
       seed: ${{parent.inputs.scorer_seed}}

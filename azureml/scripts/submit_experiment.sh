@@ -30,16 +30,21 @@ reader_revision="$AZUREML_READER_REVISION"
 answer_conditioned_calibration_scale="$AZUREML_ANSWER_CONDITIONED_CALIBRATION_SCALE"
 answer_conditioned_calibration_bias="$AZUREML_ANSWER_CONDITIONED_CALIBRATION_BIAS"
 
-if [[ ! "$AZUREML_SOURCE_DATA" =~ ^azureml://datastores/[^/]+/paths/.+ ]]; then
-  printf 'AZUREML_SOURCE_DATA must use azureml://datastores/<name>/paths/<path>.\n' >&2
+is_azureml_data_reference() {
+  [[ "$1" =~ ^azureml://datastores/[^/]+/paths/.+ ]] || \
+    [[ "$1" =~ ^azureml:[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+$ ]]
+}
+
+if ! is_azureml_data_reference "$AZUREML_SOURCE_DATA"; then
+  printf 'AZUREML_SOURCE_DATA must use a datastore URI or versioned data asset.\n' >&2
   exit 2
 fi
 for uri in \
   "$AZUREML_EXPERIMENT_QUESTIONS" \
   "$AZUREML_WRONG_ANSWERS" \
   "$AZUREML_CONTRADICTION_SCORES"; do
-  if [[ ! "$uri" =~ ^azureml://datastores/[^/]+/paths/.+ ]]; then
-    printf 'Experiment data must use azureml://datastores/<name>/paths/<path>.\n' >&2
+  if ! is_azureml_data_reference "$uri"; then
+    printf 'Experiment data must use a datastore URI or versioned data asset.\n' >&2
     exit 2
   fi
 done
