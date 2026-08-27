@@ -52,10 +52,16 @@ class TransformersScorerAdapter:
         )
         if self._tokenizer.pad_token is None:
             self._tokenizer.pad_token = self._tokenizer.eos_token
-        self._model = peft.AutoPeftModelForSequenceClassification.from_pretrained(
-            self.checkpoint_path,
+        base_model = transformers.AutoModelForSequenceClassification.from_pretrained(
+            self.tokenizer_model,
+            revision=self.tokenizer_revision,
+            num_labels=1,
             dtype="auto",
             device_map="auto",
+        )
+        self._model = peft.PeftModel.from_pretrained(
+            base_model,
+            self.checkpoint_path,
         )
         self._model.config.pad_token_id = self._tokenizer.pad_token_id
         self._model.eval()
