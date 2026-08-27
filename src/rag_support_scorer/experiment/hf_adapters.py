@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -84,20 +85,111 @@ class TransformersScorerAdapter:
         contexts: tuple[ContextDocument, ContextDocument],
         supplied_answer: str | None,
     ) -> float:
-        rendered = render_input(
+        return self.score_many(
             question,
-            "\n\n".join(context.text for context in contexts),
-            scorer_kind=self.scorer_kind,
-            supplied_answer=supplied_answer,
+            (contexts,),
+            supplied_answer,
+            batch_size=1,
+        )[0]
+
+    def score_many(
+        self,
+        question: str,
+        context_bundles: Sequence[tuple[ContextDocument, ContextDocument]],
+        supplied_answer: str | None,
+        *,
+        batch_size: int = 8,
+    ) -> tuple[float, ...]:
+        rendered = [
+            render_input(
+                question,
+                "\n\n".join(context.text for context in contexts),
+                scorer_kind=self.scorer_kind,
+                supplied_answer=supplied_answer,
+            )
+            for contexts in context_bundles
+        ]
+        scores: list[float] = []
+        torch = importlib.import_module("torch")
+        device = next(self._model.parameters()).device
+        for offset in range(0, len(rendered), batch_size):
+            encoded = self._tokenizer(
+                rendered[offset : offset + batch_size],
+                return_tensors="pt",
+                truncation=False,
+                padding=True,
+            )
+            if encoded["input_ids"].shape[-1] > self.max_sequence_length:
+                raise ValueError("scorer input exceeds the locked sequence budget")
+            encoded = {name: value.to(device) for name, value in encoded.items()}
+            with torch.no_grad():
+                scores.extend(
+                    float(value)
+                    for value in self._model(**encoded).logits.reshape(-1).tolist()
+                )
+        return tuple(scores)
+
+
+@dataclass
+class TransformersNLIAdapter:
+    model_name: str
+    model_revision: str
+    max_sequence_length: int = 512
+    _model: Any = field(init=False, repr=False)
+    _tokenizer: Any = field(init=False, repr=False)
+    _contradiction_index: int = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        _require_immutable_revision(self.model_revision)
+        try:
+            transformers = importlib.import_module("transformers")
+        except ImportError as error:
+            raise RuntimeError("install the train extra for NLI inference") from error
+        self._tokenizer = transformers.AutoTokenizer.from_pretrained(
+            self.model_name,
+            revision=self.model_revision,
         )
-        encoded = self._tokenizer(rendered, return_tensors="pt", truncation=False)
-        if encoded["input_ids"].shape[-1] > self.max_sequence_length:
-            raise ValueError("scorer input exceeds the locked sequence budget")
+        self._model = transformers.AutoModelForSequenceClassification.from_pretrained(
+            self.model_name,
+            revision=self.model_revision,
+            dtype="auto",
+            device_map="auto",
+        )
+        labels = {
+            int(index): str(label).casefold()
+            for index, label in self._model.config.id2label.items()
+        }
+        try:
+            self._contradiction_index = next(
+                index for index, label in labels.items() if "contradiction" in label
+            )
+        except StopIteration as error:
+            raise ValueError("NLI model has no contradiction label") from error
+        self._model.eval()
+
+    def contradiction_score(
+        self,
+        question: str,
+        contexts: tuple[ContextDocument, ContextDocument],
+        supplied_answer: str,
+    ) -> float:
+        premise = "\n\n".join(
+            f"{context.title}: {context.text}" for context in contexts
+        )
+        hypothesis = f'The answer to "{question}" is "{supplied_answer}".'
+        encoded = self._tokenizer(
+            premise,
+            hypothesis,
+            return_tensors="pt",
+            truncation="only_first",
+            max_length=self.max_sequence_length,
+        )
         device = next(self._model.parameters()).device
         encoded = {name: value.to(device) for name, value in encoded.items()}
         torch = importlib.import_module("torch")
         with torch.no_grad():
-            return float(self._model(**encoded).logits.reshape(-1)[0].item())
+            probabilities = torch.softmax(self._model(**encoded).logits[0], dim=-1)
+        return float(probabilities[self._contradiction_index].item())
 
 
 @dataclass

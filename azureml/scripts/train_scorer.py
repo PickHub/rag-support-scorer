@@ -158,14 +158,23 @@ def evaluate(
     model: torch.nn.Module,
     loader: DataLoader[tuple[dict[str, torch.Tensor], int]],
     device: torch.device,
-) -> float:
+) -> tuple[float, list[dict[str, float | int]]]:
     model.eval()
     losses: list[float] = []
+    score_rows: list[dict[str, float | int]] = []
     for encoded, pair_count in loader:
-        loss = pairwise_loss(model, move_to_device(encoded, device), pair_count)
+        rewards = model(**move_to_device(encoded, device)).logits.float().reshape(-1)
+        chosen_rewards = rewards[:pair_count]
+        rejected_rewards = rewards[pair_count:]
+        loss = -functional.logsigmoid(chosen_rewards - rejected_rewards).mean()
         losses.append(loss.item())
+        score_rows.extend(
+            {"score": float(score), "label": label}
+            for values, label in ((chosen_rewards, 1), (rejected_rewards, 0))
+            for score in values.tolist()
+        )
     model.train()
-    return sum(losses) / len(losses)
+    return sum(losses) / len(losses), score_rows
 
 
 def train(args: argparse.Namespace) -> None:
@@ -269,7 +278,7 @@ def train(args: argparse.Namespace) -> None:
                 optimizer.zero_grad(set_to_none=True)
                 update_count += 1
 
-    validation_loss = evaluate(model, validation_loader, device)
+    validation_loss, validation_scores = evaluate(model, validation_loader, device)
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.metrics_dir.mkdir(parents=True, exist_ok=True)
     model.save_pretrained(args.output_dir, safe_serialization=True)
@@ -285,6 +294,10 @@ def train(args: argparse.Namespace) -> None:
     }
     (args.metrics_dir / "metrics.json").write_text(
         json.dumps(metrics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (args.metrics_dir / "validation_scores.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in validation_scores) + "\n",
+        encoding="utf-8",
     )
 
 

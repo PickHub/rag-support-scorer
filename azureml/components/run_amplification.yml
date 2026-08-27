@@ -1,0 +1,45 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandComponent.schema.json
+name: run_rag_support_amplification
+version: "1"
+display_name: Run answer-error amplification study
+type: command
+inputs:
+  questions:
+    type: uri_file
+  wrong_answers:
+    type: uri_file
+  answer_free_checkpoint:
+    type: uri_folder
+  answer_conditioned_checkpoint:
+    type: uri_folder
+  scorer_model:
+    type: string
+  scorer_revision:
+    type: string
+  nli_model:
+    type: string
+  nli_revision:
+    type: string
+  calibration:
+    type: uri_file
+  batch_size:
+    type: integer
+    default: 8
+outputs:
+  results:
+    type: uri_file
+code: ../..
+environment: azureml:rag-support-scorer:1
+command: >-
+  PYTHONPATH=src python -m rag_support_scorer.experiment.amplification
+  --questions ${{inputs.questions}}
+  --wrong-answers ${{inputs.wrong_answers}}
+  --answer-free-checkpoint ${{inputs.answer_free_checkpoint}}
+  --answer-conditioned-checkpoint ${{inputs.answer_conditioned_checkpoint}}
+  --scorer-model ${{inputs.scorer_model}}
+  --scorer-revision ${{inputs.scorer_revision}}
+  --nli-model ${{inputs.nli_model}}
+  --nli-revision ${{inputs.nli_revision}}
+  --calibration ${{inputs.calibration}}
+  --output ${{outputs.results}}
+  --batch-size ${{inputs.batch_size}}

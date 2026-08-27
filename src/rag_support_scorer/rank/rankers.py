@@ -169,17 +169,38 @@ class AdapterRanker:
         if self.answer_conditioned and supplied_answer is None:
             raise ValueError("answer-conditioned ranker requires a supplied answer")
         contexts = _contexts_by_id(example)
+        context_bundles = tuple(
+            (contexts[bundle.context_ids[0]], contexts[bundle.context_ids[1]])
+            for bundle in bundles
+        )
+        score_many = getattr(self.adapter, "score_many", None)
+        if callable(score_many):
+            scores = score_many(
+                example.question,
+                context_bundles,
+                supplied_answer if self.answer_conditioned else None,
+            )
+            return _ordered(
+                [
+                    RankedBundle(bundle, score)
+                    for bundle, score in zip(bundles, scores, strict=True)
+                ]
+            )
         return _ordered(
             [
                 RankedBundle(
                     bundle,
                     self.adapter.score(
                         example.question,
-                        (contexts[bundle.context_ids[0]], contexts[bundle.context_ids[1]]),
+                        context_bundle,
                         supplied_answer if self.answer_conditioned else None,
                     ),
                 )
-                for bundle in bundles
+                for bundle, context_bundle in zip(
+                    bundles,
+                    context_bundles,
+                    strict=True,
+                )
             ]
         )
 

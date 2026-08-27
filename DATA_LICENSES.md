@@ -12,4 +12,9 @@ Optional rejection-gate evaluation may use revision `6dc0e802d41a0f4421e4477a378
 
 Every run config must record the exact model repository, immutable revision, tokenizer revision, and license. The default scorer family is the text-only `Qwen/Qwen3-0.6B`. The automated final-reader path uses Apache-licensed `ibm-granite/granite-3.3-2b-instruct`. Gemma is manually gated, non-OSI, and quarantined from automated paths. External rerankers, NLI models, and derived adapters retain their own obligations. No checkpoint or weight is included here.
 
+The amplification pipeline pins the MIT-licensed
+`MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli` model at revision
+`6f5cf0a2b59cabb106aca4c287eed12e357e90eb` for independent contradiction
+scoring.
+
 Generated manifests are metadata, not a grant to redistribute upstream text.

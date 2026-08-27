@@ -36,7 +36,7 @@ def iter_jsonl(path: Path) -> Iterator[tuple[int, dict[str, Any]]]:
 
 def validate_record(
     record: dict[str, Any], path: Path, line_number: int
-) -> tuple[str, str]:
+) -> tuple[str, str, str | None]:
     split_key = record.get("question_id", record.get("id"))
     required_strings = {
         "question": record.get("question"),
@@ -70,7 +70,10 @@ def validate_record(
             raise ValueError(
                 f"{path}:{line_number}: answer_free rows contain a supplied-answer marker"
             )
-    return str(split_key), target
+    explicit_split = record.get("split")
+    if explicit_split is not None and explicit_split not in SPLITS:
+        raise ValueError(f"{path}:{line_number}: split must be one of {', '.join(SPLITS)}")
+    return str(split_key), target, explicit_split
 
 
 def assign_split(split_key: str, seed: int) -> str:
@@ -110,8 +113,12 @@ def prepare(source_data: Path, output_dir: Path, split_seed: int) -> None:
     try:
         for source_file in source_files:
             for line_number, record in iter_jsonl(source_file):
-                split_key, target = validate_record(record, source_file, line_number)
-                split = assign_split(split_key, split_seed)
+                split_key, target, explicit_split = validate_record(
+                    record,
+                    source_file,
+                    line_number,
+                )
+                split = explicit_split or assign_split(split_key, split_seed)
                 streams[(target, split)].write(
                     json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n"
                 )

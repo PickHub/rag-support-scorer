@@ -1,0 +1,87 @@
+$schema: https://azuremlschemas.azureedge.net/latest/pipelineJob.schema.json
+type: pipeline
+display_name: answer-error-amplification
+experiment_name: rag-support-amplification
+identity:
+  type: managed
+inputs:
+  source_data:
+    type: uri_folder
+  study_questions:
+    type: uri_file
+  wrong_answers:
+    type: uri_file
+  model_name: Qwen/Qwen3-0.6B
+  model_revision: ""
+  nli_model: MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli
+  nli_revision: ""
+  split_seed: 17
+  scorer_seed: 17
+  epochs: 1
+  batch_size: 8
+outputs:
+  answer_free_model:
+    type: uri_folder
+  answer_conditioned_model:
+    type: uri_folder
+  calibration:
+    type: uri_file
+  study_results:
+    type: uri_file
+jobs:
+  prepare:
+    type: command
+    component: ../components/prepare_data.yml
+    inputs:
+      source_data: ${{parent.inputs.source_data}}
+      split_seed: ${{parent.inputs.split_seed}}
+  train_answer_free:
+    type: command
+    component: ../components/train_scorer.yml
+    inputs:
+      prepared_data: ${{parent.jobs.prepare.outputs.prepared_data}}
+      scorer_kind: answer_free
+      model_name: ${{parent.inputs.model_name}}
+      model_revision: ${{parent.inputs.model_revision}}
+      seed: ${{parent.inputs.scorer_seed}}
+      epochs: ${{parent.inputs.epochs}}
+    outputs:
+      model: ${{parent.outputs.answer_free_model}}
+  train_answer_conditioned:
+    type: command
+    component: ../components/train_scorer.yml
+    inputs:
+      prepared_data: ${{parent.jobs.prepare.outputs.prepared_data}}
+      scorer_kind: answer_conditioned
+      model_name: ${{parent.inputs.model_name}}
+      model_revision: ${{parent.inputs.model_revision}}
+      seed: ${{parent.inputs.scorer_seed}}
+      epochs: ${{parent.inputs.epochs}}
+    outputs:
+      model: ${{parent.outputs.answer_conditioned_model}}
+  fit_calibration:
+    type: command
+    component: ../components/fit_calibration.yml
+    inputs:
+      metrics: ${{parent.jobs.train_answer_conditioned.outputs.metrics}}
+    outputs:
+      calibration: ${{parent.outputs.calibration}}
+  run_study:
+    type: command
+    component: ../components/run_amplification.yml
+    inputs:
+      questions: ${{parent.inputs.study_questions}}
+      wrong_answers: ${{parent.inputs.wrong_answers}}
+      answer_free_checkpoint: ${{parent.jobs.train_answer_free.outputs.model}}
+      answer_conditioned_checkpoint: ${{parent.jobs.train_answer_conditioned.outputs.model}}
+      scorer_model: ${{parent.inputs.model_name}}
+      scorer_revision: ${{parent.inputs.model_revision}}
+      nli_model: ${{parent.inputs.nli_model}}
+      nli_revision: ${{parent.inputs.nli_revision}}
+      calibration: ${{parent.jobs.fit_calibration.outputs.calibration}}
+      batch_size: ${{parent.inputs.batch_size}}
+    outputs:
+      results: ${{parent.outputs.study_results}}
+settings:
+  default_compute: azureml:gpu-t4-dedicated
+  continue_on_step_failure: false

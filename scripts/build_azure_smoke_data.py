@@ -6,7 +6,7 @@ import json
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 
-from rag_support_scorer.data.artifact_controls import lexical_overlap
+from rag_support_scorer.data.artifact_controls import lexical_overlap, surface_features
 from rag_support_scorer.data.bundles import enumerate_two_context_bundles
 from rag_support_scorer.data.ingest import parse_2wiki_record
 from rag_support_scorer.data.interventions import (
@@ -50,6 +50,7 @@ def _preference_records(
     scorer_kind: ScorerKind,
     supplied_answer: str | None,
     max_negatives: int,
+    split: str,
 ) -> list[dict[str, object]]:
     bundles = enumerate_two_context_bundles(example)
     positives = [bundle for bundle in bundles if bundle.contains_all_gold_support]
@@ -57,9 +58,15 @@ def _preference_records(
         raise ValueError("smoke data requires exactly one gold-support bundle")
     contexts = {context.source_id: context for context in example.contexts}
     positive = positives[0]
+    counterfactual_ids = {
+        context.source_id
+        for context in example.contexts
+        if ":counterfactual-" in context.source_id
+    }
     negatives = sorted(
         (bundle for bundle in bundles if not bundle.contains_all_gold_support),
         key=lambda bundle: (
+            not bool(counterfactual_ids & set(bundle.context_ids)),
             -lexical_overlap(example.question, _bundle_text(bundle, contexts)),
             bundle.context_ids,
         ),
@@ -84,6 +91,7 @@ def _preference_records(
                 supplied_answer=supplied_answer,
             ),
             "target": target,
+            "split": split,
         }
         if supplied_answer is not None:
             record["supplied_answer"] = supplied_answer
@@ -110,10 +118,10 @@ def _wrong_answer(
     return candidates[0] if candidates else None
 
 
-def _contradicted_example(
+def conflict_enriched_examples(
     example: QuestionExample,
     wrong_answer: str,
-) -> QuestionExample | None:
+) -> tuple[QuestionExample, QuestionExample] | None:
     gold = example.gold_answers[0]
     target = next(
         (
@@ -131,26 +139,41 @@ def _contradicted_example(
         gold_answer=gold,
         wrong_answer=wrong_answer,
         template=InterventionTemplate(
-            "azure-smoke-contradiction-v1",
+            "counterfactual-v1",
             InterventionFamily.CONTRADICTION_INJECTION,
         ),
     )
-    modified = result.contexts[0]
+    distractors = sorted(
+        (
+            context
+            for context in example.contexts
+            if context.source_id not in example.gold_support_ids
+        ),
+        key=lambda context: (
+            lexical_overlap(example.question, context.text),
+            context.source_id,
+        ),
+    )
+    if not distractors:
+        return None
+    removed = distractors[0]
+    modified = result.contexts[0].model_copy(update={"position": removed.position})
     contexts = tuple(
-        modified if context.source_id == target.source_id else context
+        modified if context.source_id == removed.source_id else context
         for context in example.contexts
     )
-    support_ids = frozenset(
+    enriched = example.model_copy(update={"contexts": contexts})
+    wrong_support_ids = frozenset(
         modified.source_id if source_id == target.source_id else source_id
         for source_id in example.gold_support_ids
     )
-    return example.model_copy(
+    wrong_labeled = enriched.model_copy(
         update={
-            "contexts": contexts,
             "gold_answers": (wrong_answer,),
-            "gold_support_ids": support_ids,
+            "gold_support_ids": wrong_support_ids,
         }
     )
+    return enriched, wrong_labeled
 
 
 def build_records(
@@ -159,11 +182,13 @@ def build_records(
     limit: int,
     max_negatives: int,
     split_seed: int,
+    explicit_split_counts: tuple[int, int, int] | None = None,
 ) -> tuple[
     list[dict[str, object]],
     list[QuestionExample],
     dict[str, str],
     dict[str, float],
+    list[dict[str, object]],
 ]:
     answers = tuple(example.gold_answers[0] for example in examples)
     candidates = []
@@ -173,47 +198,86 @@ def build_records(
         wrong = _wrong_answer(example, answers)
         if wrong is None:
             continue
-        contradicted = _contradicted_example(example, wrong)
-        if contradicted is None:
+        conflict_examples = conflict_enriched_examples(example, wrong)
+        if conflict_examples is None:
             continue
+        enriched, wrong_labeled = conflict_examples
         key = hashlib.sha256(f"{split_seed}:{example.source_id}".encode()).hexdigest()
-        candidates.append((key, example, wrong, contradicted))
+        candidates.append((key, enriched, wrong, wrong_labeled))
     selected = sorted(candidates, key=lambda item: item[0])[:limit]
     records: list[dict[str, object]] = []
     test_examples = []
     wrong_answers = {}
     contradiction_scores = {}
-    for _, example, wrong, contradicted in selected:
+    artifact_rows = []
+    for index, (_, example, wrong, wrong_labeled) in enumerate(selected):
+        if explicit_split_counts is None:
+            split = azure_split(example.source_id, split_seed)
+        else:
+            train_count, validation_count, _ = explicit_split_counts
+            split = (
+                "train"
+                if index < train_count
+                else "validation"
+                if index < train_count + validation_count
+                else "test"
+            )
         records.extend(
             _preference_records(
                 example,
                 scorer_kind=ScorerKind.ANSWER_FREE,
                 supplied_answer=None,
                 max_negatives=max_negatives,
+                split=split,
             )
         )
+        counterfactual = next(
+            context
+            for context in example.contexts
+            if ":counterfactual-" in context.source_id
+        )
+        original = next(
+            context
+            for context in example.contexts
+            if context.title == counterfactual.title
+            and ":counterfactual-" not in context.source_id
+        )
+        for context, label in ((original, 0), (counterfactual, 1)):
+            artifact_rows.append(
+                {
+                    "question_id": example.source_id,
+                    "split": split,
+                    "label": label,
+                    "features": surface_features(
+                        context.text,
+                        question=example.question,
+                    ).as_vector(),
+                }
+            )
         records.extend(
             _preference_records(
                 example,
                 scorer_kind=ScorerKind.ANSWER_CONDITIONED,
                 supplied_answer=example.gold_answers[0],
                 max_negatives=max_negatives,
+                split=split,
             )
         )
         records.extend(
             _preference_records(
-                contradicted,
+                wrong_labeled,
                 scorer_kind=ScorerKind.ANSWER_CONDITIONED,
                 supplied_answer=wrong,
                 max_negatives=max_negatives,
+                split=split,
             )
         )
-        if azure_split(example.source_id, split_seed) == "test":
+        if split == "test":
             test_examples.append(example)
             wrong_answers[example.source_id] = wrong
             contradiction_scores[f"{example.source_id}:correct"] = 0.5
             contradiction_scores[f"{example.source_id}:plausible_wrong"] = 0.5
-    return records, test_examples, wrong_answers, contradiction_scores
+    return records, test_examples, wrong_answers, contradiction_scores, artifact_rows
 
 
 def main() -> None:
@@ -224,6 +288,9 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=128)
     parser.add_argument("--max-negatives", type=int, default=4)
     parser.add_argument("--split-seed", type=int, default=17)
+    parser.add_argument("--train-questions", type=int)
+    parser.add_argument("--validation-questions", type=int)
+    parser.add_argument("--test-questions", type=int)
     args = parser.parse_args()
     try:
         from datasets import load_dataset
@@ -235,11 +302,33 @@ def main() -> None:
         split=f"source[:{args.scan_limit}]",
     )
     examples = tuple(parse_2wiki_record(row) for row in dataset)
-    records, test_examples, wrong_answers, contradiction_scores = build_records(
+    requested_counts = (
+        args.train_questions,
+        args.validation_questions,
+        args.test_questions,
+    )
+    explicit_split_counts = None
+    if any(value is not None for value in requested_counts):
+        if not all(value is not None and value > 0 for value in requested_counts):
+            raise ValueError("all explicit split counts must be positive")
+        explicit_split_counts = (
+            int(requested_counts[0]),
+            int(requested_counts[1]),
+            int(requested_counts[2]),
+        )
+        args.limit = sum(explicit_split_counts)
+    (
+        records,
+        test_examples,
+        wrong_answers,
+        contradiction_scores,
+        artifact_rows,
+    ) = build_records(
         examples,
         limit=args.limit,
         max_negatives=args.max_negatives,
         split_seed=args.split_seed,
+        explicit_split_counts=explicit_split_counts,
     )
     preferences_dir = args.output_dir / "preferences"
     experiment_dir = args.output_dir / "experiment"
@@ -257,14 +346,19 @@ def main() -> None:
     (experiment_dir / "contradiction_scores.json").write_text(
         json.dumps(contradiction_scores, indent=2, sort_keys=True) + "\n"
     )
+    (experiment_dir / "artifact_probe.jsonl").write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in artifact_rows) + "\n"
+    )
     manifest = {
         "scan_limit": args.scan_limit,
         "question_limit": args.limit,
         "max_negatives": args.max_negatives,
         "split_seed": args.split_seed,
+        "explicit_split_counts": explicit_split_counts,
         "preference_records": len(records),
         "test_questions": len(test_examples),
         "contradiction_scores": "constant smoke-only baseline; not a research result",
+        "candidate_pool": "fixed original gold plus matched counterfactual support",
     }
     (args.output_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n"

@@ -63,6 +63,28 @@ uv run --extra train python scripts/build_azure_smoke_data.py \
 
 The builder keeps passage-bearing preferences separate from experiment inputs and marks its constant contradiction score as smoke-only. Replace that baseline with independently computed contradiction scores before treating gate metrics as research results.
 
+For the amplification study, use explicit question-disjoint splits and run the
+artifact detector before GPU training:
+
+```bash
+uv run --extra train python scripts/build_azure_smoke_data.py \
+  --input data/raw/2wiki/train.parquet \
+  --output-dir data/amplification/source \
+  --scan-limit 20000 \
+  --train-questions 300 \
+  --validation-questions 100 \
+  --test-questions 150
+
+uv run python scripts/evaluate_artifact_probe.py \
+  --input data/amplification/source/experiment/artifact_probe.jsonl \
+  --output data/amplification/artifact_report.json
+```
+
+Stop if passage-only artifact detection exceeds the preregistered `0.60` ROC
+AUC threshold. The Azure amplification pipeline fits Platt calibration from the
+conditioned scorer's validation outputs and uses the independently pinned
+DeBERTa NLI model.
+
 Validate scorer examples on CPU without loading a model:
 
 ```bash
