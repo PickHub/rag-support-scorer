@@ -6,7 +6,10 @@ from pathlib import Path
 import pytest
 
 from rag_support_scorer.experiment.adapters import DeterministicMockReader
-from rag_support_scorer.experiment.hf_adapters import render_reader_prompt
+from rag_support_scorer.experiment.hf_adapters import (
+    normalize_reader_answer,
+    render_reader_prompt,
+)
 from rag_support_scorer.experiment.runner import (
     ExperimentConfig,
     RankingPolicy,
@@ -100,6 +103,11 @@ def test_transformers_reader_prompt_contains_only_question_and_contexts(
     assert sample_example.contexts[0].text in prompt
     assert "Supplied answer" not in prompt
     assert "Alan Turing" not in prompt
+
+
+def test_reader_answer_normalization_removes_only_explicit_wrapping() -> None:
+    assert normalize_reader_answer("Answer: Charles Babbage\nExplanation") == "Charles Babbage"
+    assert normalize_reader_answer("Chennai\nReference: context 1") == "Chennai"
 
 
 def test_gpu_experiment_requires_immutable_revisions(tmp_path: Path) -> None:

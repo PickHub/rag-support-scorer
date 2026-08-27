@@ -20,6 +20,9 @@ inputs:
     type: string
   reader_revision:
     type: string
+  reader_max_new_tokens:
+    type: integer
+    default: 32
   contradiction_scores:
     type: uri_file
   answer_conditioned_calibration_scale:
@@ -44,6 +47,7 @@ command: >-
   --scorer-tokenizer-revision ${{inputs.scorer_tokenizer_revision}}
   --reader-model ${{inputs.reader_model}}
   --reader-revision ${{inputs.reader_revision}}
+  --reader-max-new-tokens ${{inputs.reader_max_new_tokens}}
   --contradiction-scores ${{inputs.contradiction_scores}}
   --answer-conditioned-calibration-scale ${{inputs.answer_conditioned_calibration_scale}}
   --answer-conditioned-calibration-bias ${{inputs.answer_conditioned_calibration_bias}}

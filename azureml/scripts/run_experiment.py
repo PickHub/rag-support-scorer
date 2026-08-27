@@ -16,6 +16,7 @@ def main() -> None:
     parser.add_argument("--scorer-tokenizer-revision", required=True)
     parser.add_argument("--reader-model", required=True)
     parser.add_argument("--reader-revision", required=True)
+    parser.add_argument("--reader-max-new-tokens", type=int, default=32)
     parser.add_argument("--contradiction-scores", type=Path, required=True)
     parser.add_argument("--answer-conditioned-calibration-scale", type=float, required=True)
     parser.add_argument("--answer-conditioned-calibration-bias", type=float, required=True)
@@ -28,6 +29,7 @@ def main() -> None:
         wrong_answers_path=args.wrong_answers,
         reader_model=args.reader_model,
         reader_revision=args.reader_revision,
+        reader_max_new_tokens=args.reader_max_new_tokens,
         answer_free_checkpoint=args.answer_free_checkpoint,
         answer_conditioned_checkpoint=args.answer_conditioned_checkpoint,
         scorer_tokenizer_model=args.scorer_tokenizer_model,

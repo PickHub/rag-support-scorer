@@ -24,8 +24,20 @@ def render_reader_prompt(
         f"Question:\n{question}\n\n"
         f"Context 1 ({contexts[0].title}):\n{contexts[0].text}\n\n"
         f"Context 2 ({contexts[1].title}):\n{contexts[1].text}\n\n"
-        "Answer using only the contexts. Return only the answer."
+        "Answer using only the contexts. Return only the shortest answer span, "
+        "without a label, sentence, explanation, or citation."
     )
+
+
+def normalize_reader_answer(text: str) -> str:
+    lines = [line.strip() for line in text.strip().splitlines() if line.strip()]
+    if not lines:
+        return ""
+    answer = lines[0]
+    for prefix in ("answer:", "response:"):
+        if answer.casefold().startswith(prefix):
+            answer = answer[len(prefix) :].strip()
+    return answer
 
 
 @dataclass
@@ -126,7 +138,12 @@ class TransformersReaderAdapter:
         seed: int,
     ) -> ReaderOutput:
         prompt = render_reader_prompt(question, contexts)
-        encoded = self._tokenizer(prompt, return_tensors="pt")
+        rendered = self._tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+        encoded = self._tokenizer(rendered, return_tensors="pt")
         device = next(self._model.parameters()).device
         encoded = {name: value.to(device) for name, value in encoded.items()}
         output = self._model.generate(
@@ -136,10 +153,12 @@ class TransformersReaderAdapter:
             pad_token_id=self._tokenizer.pad_token_id,
         )
         prompt_length = encoded["input_ids"].shape[-1]
-        answer = self._tokenizer.decode(
-            output[0, prompt_length:],
-            skip_special_tokens=True,
-        ).strip()
+        answer = normalize_reader_answer(
+            self._tokenizer.decode(
+                output[0, prompt_length:],
+                skip_special_tokens=True,
+            )
+        )
         return ReaderOutput(
             answer=answer,
             metadata={"adapter": self.name, "seed": seed},

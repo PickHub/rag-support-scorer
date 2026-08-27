@@ -18,6 +18,7 @@ inputs:
   model_revision: ""
   reader_model: ibm-granite/granite-3.3-2b-instruct
   reader_revision: ""
+  reader_max_new_tokens: 32
   answer_conditioned_calibration_scale: 1.0
   answer_conditioned_calibration_bias: 0.0
   split_seed: 17
@@ -73,6 +74,7 @@ jobs:
       scorer_tokenizer_revision: ${{parent.inputs.model_revision}}
       reader_model: ${{parent.inputs.reader_model}}
       reader_revision: ${{parent.inputs.reader_revision}}
+      reader_max_new_tokens: ${{parent.inputs.reader_max_new_tokens}}
       contradiction_scores: ${{parent.inputs.contradiction_scores}}
       answer_conditioned_calibration_scale: ${{parent.inputs.answer_conditioned_calibration_scale}}
       answer_conditioned_calibration_bias: ${{parent.inputs.answer_conditioned_calibration_bias}}

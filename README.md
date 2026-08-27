@@ -15,6 +15,11 @@ This repository provides a reproducible, single-GPU toolkit for measuring that f
 
 The experiment harness, tests, and Azure ML assets are implemented. Trained checkpoints and empirical findings are not published yet, so the current value is reproducible research infrastructure rather than a claimed model improvement.
 
+The first end-to-end Azure execution is documented in
+[`docs/azure-smoke-run-2026-08-27.md`](docs/azure-smoke-run-2026-08-27.md).
+It validates the pipeline and reports a negative smoke finding rather than
+claiming research performance.
+
 ## Who this is for
 
 Researchers and RAG engineers evaluating whether generated answers should influence evidence selection, especially when working with small models and limited GPU capacity.
