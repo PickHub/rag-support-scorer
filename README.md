@@ -45,6 +45,19 @@ uv run rag-support-prepare \
   --dataset-revision 612bc5039a457880d9e7d84c3b0a4cf154b70e4f
 ```
 
+Build bounded private inputs for an Azure smoke run:
+
+```bash
+uv run --extra train python scripts/build_azure_smoke_data.py \
+  --input data/raw/2wiki/train.parquet \
+  --output-dir data/azure-smoke/source \
+  --scan-limit 4096 \
+  --limit 128 \
+  --max-negatives 4
+```
+
+The builder keeps passage-bearing preferences separate from experiment inputs and marks its constant contradiction score as smoke-only. Replace that baseline with independently computed contradiction scores before treating gate metrics as research results.
+
 Validate scorer examples on CPU without loading a model:
 
 ```bash
