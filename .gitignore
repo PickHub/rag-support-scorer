@@ -9,8 +9,8 @@ dist/
 build/
 .coverage
 htmlcov/
-data/
-results/
+/data/
+/results/
 checkpoints/
 outputs/
 *.safetensors

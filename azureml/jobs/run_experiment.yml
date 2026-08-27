@@ -1,0 +1,45 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: controlled-rag-support-experiment
+experiment_name: rag-support-scorer
+code: ../..
+command: >-
+  PYTHONPATH=src python azureml/scripts/run_experiment.py
+  --questions ${{inputs.questions}}
+  --wrong-answers ${{inputs.wrong_answers}}
+  --answer-free-checkpoint ${{inputs.answer_free_checkpoint}}
+  --answer-conditioned-checkpoint ${{inputs.answer_conditioned_checkpoint}}
+  --scorer-tokenizer-model ${{inputs.scorer_tokenizer_model}}
+  --scorer-tokenizer-revision ${{inputs.scorer_tokenizer_revision}}
+  --reader-model ${{inputs.reader_model}}
+  --reader-revision ${{inputs.reader_revision}}
+  --contradiction-scores ${{inputs.contradiction_scores}}
+  --answer-conditioned-calibration-scale ${{inputs.answer_conditioned_calibration_scale}}
+  --answer-conditioned-calibration-bias ${{inputs.answer_conditioned_calibration_bias}}
+  --output-dir ${{outputs.results}}
+  --seed ${{inputs.seed}}
+environment: azureml:rag-support-scorer:1
+compute: azureml:gpu-t4-dedicated
+identity:
+  type: managed
+inputs:
+  questions:
+    type: uri_file
+  wrong_answers:
+    type: uri_file
+  answer_free_checkpoint:
+    type: uri_folder
+  answer_conditioned_checkpoint:
+    type: uri_folder
+  scorer_tokenizer_model: Qwen/Qwen3-0.6B
+  scorer_tokenizer_revision: ""
+  reader_model: ibm-granite/granite-3.3-2b-instruct
+  reader_revision: ""
+  contradiction_scores:
+    type: uri_file
+  answer_conditioned_calibration_scale: 1.0
+  answer_conditioned_calibration_bias: 0.0
+  seed: 17
+outputs:
+  results:
+    type: uri_folder
