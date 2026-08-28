@@ -1,0 +1,41 @@
+$schema: https://azuremlschemas.azureedge.net/latest/commandJob.schema.json
+type: command
+display_name: answer-error-amplification-study
+experiment_name: rag-support-amplification
+code: ../..
+command: >-
+  PYTHONPATH=src python -m rag_support_scorer.experiment.amplification
+  --questions ${{inputs.questions}}
+  --wrong-answers ${{inputs.wrong_answers}}
+  --answer-free-checkpoint ${{inputs.answer_free_checkpoint}}
+  --answer-conditioned-checkpoint ${{inputs.answer_conditioned_checkpoint}}
+  --scorer-model ${{inputs.scorer_model}}
+  --scorer-revision ${{inputs.scorer_revision}}
+  --nli-model ${{inputs.nli_model}}
+  --nli-revision ${{inputs.nli_revision}}
+  --calibration ${{inputs.calibration}}/calibration.json
+  --output ${{outputs.results}}
+  --batch-size ${{inputs.batch_size}}
+environment: azureml:rag-support-scorer:1
+compute: azureml:gpu-t4-dedicated
+identity:
+  type: managed
+inputs:
+  questions:
+    type: uri_file
+  wrong_answers:
+    type: uri_file
+  answer_free_checkpoint:
+    type: uri_folder
+  answer_conditioned_checkpoint:
+    type: uri_folder
+  scorer_model: Qwen/Qwen3-0.6B
+  scorer_revision: ""
+  nli_model: MoritzLaurer/DeBERTa-v3-base-mnli-fever-anli
+  nli_revision: ""
+  calibration:
+    type: uri_folder
+  batch_size: 8
+outputs:
+  results:
+    type: uri_file

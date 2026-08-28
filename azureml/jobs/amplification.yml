@@ -25,7 +25,7 @@ outputs:
   answer_conditioned_model:
     type: uri_folder
   calibration:
-    type: uri_file
+    type: uri_folder
   study_results:
     type: uri_file
 jobs:

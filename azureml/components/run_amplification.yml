@@ -21,7 +21,7 @@ inputs:
   nli_revision:
     type: string
   calibration:
-    type: uri_file
+    type: uri_folder
   batch_size:
     type: integer
     default: 8
@@ -40,6 +40,6 @@ command: >-
   --scorer-revision ${{inputs.scorer_revision}}
   --nli-model ${{inputs.nli_model}}
   --nli-revision ${{inputs.nli_revision}}
-  --calibration ${{inputs.calibration}}
+  --calibration ${{inputs.calibration}}/calibration.json
   --output ${{outputs.results}}
   --batch-size ${{inputs.batch_size}}

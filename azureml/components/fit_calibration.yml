@@ -8,10 +8,10 @@ inputs:
     type: uri_folder
 outputs:
   calibration:
-    type: uri_file
+    type: uri_folder
 code: ../..
 environment: azureml:rag-support-scorer:1
 command: >-
   PYTHONPATH=src python -m rag_support_scorer.eval.calibrate_cli
   --input ${{inputs.metrics}}/validation_scores.jsonl
-  --output ${{outputs.calibration}}
+  --output ${{outputs.calibration}}/calibration.json
