@@ -16,8 +16,13 @@ def fit_platt_file(input_path: Path, output_path: Path) -> None:
     scores = [float(row["score"]) for row in rows]
     labels = [int(row["label"]) for row in rows]
     scaler = PlattScaler().fit(scores, labels)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
+    destination = (
+        output_path / "calibration.json"
+        if output_path.suffix.casefold() != ".json"
+        else output_path
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
         json.dumps({"scale": scaler.scale, "bias": scaler.bias}, indent=2, sort_keys=True)
         + "\n"
     )

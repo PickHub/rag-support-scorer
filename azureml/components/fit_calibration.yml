@@ -14,4 +14,4 @@ environment: azureml:rag-support-scorer:1
 command: >-
   PYTHONPATH=src python -m rag_support_scorer.eval.calibrate_cli
   --input ${{inputs.metrics}}/validation_scores.jsonl
-  --output ${{outputs.calibration}}/calibration.json
+  --output ${{outputs.calibration}}
