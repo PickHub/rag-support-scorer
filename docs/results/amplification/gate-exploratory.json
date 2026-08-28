@@ -1,0 +1,162 @@
+{
+  "ablations": {
+    "confidence_only": {
+      "by_condition": {
+        "correct": {
+          "aurc": 0.0892983825064358,
+          "balanced_accuracy": 0.36141304347826086,
+          "brier": 0.2499900564324719,
+          "ece": 0.43453270750272543,
+          "false_retain_rate": 0.625,
+          "pr_auc": 0.053515325637465055,
+          "prevalence": 0.06504065040650407
+        },
+        "plausible_wrong": {
+          "aurc": 0.5778350948681229,
+          "balanced_accuracy": 0.4472624798711755,
+          "brier": 0.2506014829030284,
+          "ece": 0.06265916368979506,
+          "false_retain_rate": 0.42028985507246375,
+          "pr_auc": 0.580594398134413,
+          "prevalence": 0.5609756097560976
+        }
+      },
+      "pooled": {
+        "aurc": 0.3572559195629846,
+        "balanced_accuracy": 0.4478598324752171,
+        "brier": 0.25029576966775013,
+        "ece": 0.18593677190646507,
+        "false_retain_rate": 0.44155844155844154,
+        "pr_auc": 0.29268070635698007,
+        "prevalence": 0.3130081300813008
+      }
+    },
+    "contradiction_only": {
+      "by_condition": {
+        "correct": {
+          "aurc": 0.038292202654078324,
+          "balanced_accuracy": 0.44782608695652176,
+          "brier": 0.18107130490934745,
+          "ece": 0.30913943991441145,
+          "false_retain_rate": 1.0,
+          "pr_auc": 0.08044721472287122,
+          "prevalence": 0.06504065040650407
+        },
+        "plausible_wrong": {
+          "aurc": 0.43193351142683284,
+          "balanced_accuracy": 0.6920289855072463,
+          "brier": 0.2042572400683157,
+          "ece": 0.05919057738569318,
+          "false_retain_rate": 0.4492753623188406,
+          "pr_auc": 0.7882095644835724,
+          "prevalence": 0.5609756097560976
+        }
+      },
+      "pooled": {
+        "aurc": 0.14733330921219243,
+        "balanced_accuracy": 0.6846230692384538,
+        "brier": 0.19266427248883158,
+        "ece": 0.132105489558377,
+        "false_retain_rate": 0.5064935064935064,
+        "pr_auc": 0.6025743021634935,
+        "prevalence": 0.3130081300813008
+      }
+    },
+    "disagreement_only": {
+      "by_condition": {
+        "correct": {
+          "aurc": 0.03981464813055679,
+          "balanced_accuracy": 0.7722826086956522,
+          "brier": 0.18215857604076702,
+          "ece": 0.21490744339611564,
+          "false_retain_rate": 0.125,
+          "pr_auc": 0.1320684096604565,
+          "prevalence": 0.06504065040650407
+        },
+        "plausible_wrong": {
+          "aurc": 0.30421666221766613,
+          "balanced_accuracy": 0.7765700483091788,
+          "brier": 0.15538667085197336,
+          "ece": 0.059530861754903255,
+          "false_retain_rate": 0.057971014492753624,
+          "pr_auc": 0.8449484518161312,
+          "prevalence": 0.5609756097560976
+        }
+      },
+      "pooled": {
+        "aurc": 0.13280593550875067,
+        "balanced_accuracy": 0.7929762545147161,
+        "brier": 0.1687726234463702,
+        "ece": 0.11979512482428266,
+        "false_retain_rate": 0.06493506493506493,
+        "pr_auc": 0.6544662726631207,
+        "prevalence": 0.3130081300813008
+      }
+    },
+    "full": {
+      "by_condition": {
+        "correct": {
+          "aurc": 0.03942044345839458,
+          "balanced_accuracy": 0.7722826086956522,
+          "brier": 0.17845761366481772,
+          "ece": 0.20349043793372404,
+          "false_retain_rate": 0.125,
+          "pr_auc": 0.10164155576865985,
+          "prevalence": 0.06504065040650407
+        },
+        "plausible_wrong": {
+          "aurc": 0.27613864469818034,
+          "balanced_accuracy": 0.7765700483091788,
+          "brier": 0.15108551145883736,
+          "ece": 0.07357259443657545,
+          "false_retain_rate": 0.057971014492753624,
+          "pr_auc": 0.862764400260991,
+          "prevalence": 0.5609756097560976
+        }
+      },
+      "pooled": {
+        "aurc": 0.11623269954647884,
+        "balanced_accuracy": 0.7929762545147161,
+        "brier": 0.16477156256182754,
+        "ece": 0.11757611422545536,
+        "false_retain_rate": 0.06493506493506493,
+        "pr_auc": 0.6645202241017785,
+        "prevalence": 0.3130081300813008
+      }
+    },
+    "full_without_contradiction": {
+      "by_condition": {
+        "correct": {
+          "aurc": 0.03685513929987772,
+          "balanced_accuracy": 0.7722826086956522,
+          "brier": 0.18264766993643375,
+          "ece": 0.21485112412053786,
+          "false_retain_rate": 0.125,
+          "pr_auc": 0.12417015075887675,
+          "prevalence": 0.06504065040650407
+        },
+        "plausible_wrong": {
+          "aurc": 0.3068810799758107,
+          "balanced_accuracy": 0.7765700483091788,
+          "brier": 0.15646672298406392,
+          "ece": 0.041912076696923116,
+          "false_retain_rate": 0.057971014492753624,
+          "pr_auc": 0.8369827051017397,
+          "prevalence": 0.5609756097560976
+        }
+      },
+      "pooled": {
+        "aurc": 0.13147016610856913,
+        "balanced_accuracy": 0.7929762545147161,
+        "brier": 0.16955719646024883,
+        "ece": 0.1186217727852554,
+        "false_retain_rate": 0.06493506493506493,
+        "pr_auc": 0.6382813205659301,
+        "prevalence": 0.3130081300813008
+      }
+    }
+  },
+  "harm_prevalence": 0.3130081300813008,
+  "test_examples": 246,
+  "train_examples": 654
+}

@@ -86,6 +86,14 @@ def analyze(
             for _ in range(bootstrap_samples)
         ]
     )
+    observed = float(primary.mean())
+    permuted = np.asarray(
+        [
+            (primary * rng.choice((-1.0, 1.0), size=len(primary))).mean()
+            for _ in range(bootstrap_samples)
+        ]
+    )
+    one_sided_p = (1 + int(np.sum(permuted <= observed))) / (bootstrap_samples + 1)
     seed_summaries: dict[str, dict[str, float]] = {}
     for seed_name, questions in by_seed.items():
         metrics: dict[str, list[float]] = defaultdict(list)
@@ -124,6 +132,7 @@ def analyze(
             float(np.quantile(bootstrap, 0.025)),
             float(np.quantile(bootstrap, 0.975)),
         ],
+        "coverage_interaction_one_sided_permutation_p": one_sided_p,
         "seed_summaries": seed_summaries,
         "failure_checks": {
             "correct_counterfactual_top1_exceeds_0_15": (

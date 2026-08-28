@@ -20,6 +20,11 @@ The first end-to-end Azure execution is documented in
 It validates the pipeline and reports a negative smoke finding rather than
 claiming research performance.
 
+A subsequent three-seed controlled study demonstrates answer-error
+amplification in the constructed counterfactual setting. Read the
+[`answer-error amplification report`](docs/answer-error-amplification-2026-08-28.md)
+for the result and its limitations.
+
 ## Who this is for
 
 Researchers and RAG engineers evaluating whether generated answers should influence evidence selection, especially when working with small models and limited GPU capacity.

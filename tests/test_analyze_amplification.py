@@ -40,3 +40,6 @@ def test_analyzer_clusters_repeated_seeds_by_question(tmp_path: Path) -> None:
     assert report["questions"] == 10
     assert report["aggregate"]["coverage_interaction"] == -1.0  # type: ignore[index]
     assert report["coverage_interaction_ci95"] == [-1.0, -1.0]
+    p_value = report["coverage_interaction_one_sided_permutation_p"]
+    assert isinstance(p_value, float)
+    assert p_value < 0.02

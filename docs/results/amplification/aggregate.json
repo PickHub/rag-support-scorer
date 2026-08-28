@@ -1,0 +1,40 @@
+{
+  "aggregate": {
+    "correct_counterfactual_top1": 0.05333333333333334,
+    "counterfactual_top1_increase": 0.6555555555555556,
+    "coverage_interaction": -0.6355555555555555,
+    "lexical_counterfactual_increase": 0.06,
+    "margin_delta": 5.0960487196180555
+  },
+  "coverage_interaction_ci95": [
+    -0.7000555555555554,
+    -0.5666666666666667
+  ],
+  "coverage_interaction_one_sided_permutation_p": 9.999000099990002e-05,
+  "failure_checks": {
+    "correct_counterfactual_top1_exceeds_0_15": false,
+    "coverage_effect_sign_changes_across_seeds": false
+  },
+  "primary_direction": "negative indicates answer-error amplification",
+  "primary_metric": "coverage_interaction",
+  "questions": 150,
+  "seed_summaries": {
+    "17": {
+      "counterfactual_top1_increase": 0.6866666666666666,
+      "coverage_interaction": -0.6533333333333333
+    },
+    "23": {
+      "counterfactual_top1_increase": 0.72,
+      "coverage_interaction": -0.7066666666666667
+    },
+    "42": {
+      "counterfactual_top1_increase": 0.56,
+      "coverage_interaction": -0.5466666666666666
+    }
+  },
+  "seeds": [
+    "17",
+    "23",
+    "42"
+  ]
+}
